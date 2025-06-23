@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-21 20:59:56 krylon>
+# Time-stamp: <2025-06-23 18:52:25 krylon>
 #
 # /data/code/python/hollywoo/database.py
 # created on 21. 06. 2025
@@ -16,10 +16,17 @@ hollywoo.database
 (c) 2025 Benjamin Walkenhorst
 """
 
+import logging
+import sqlite3
+from datetime import datetime
+from enum import IntEnum, auto, unique
 from threading import Lock
-from typing import Final
+from typing import Final, Optional
+
+import krylib
 
 from hollywoo import common
+from hollywoo.model import Folder
 
 
 class DBError(common.HollywooError):
@@ -32,7 +39,7 @@ class IntegrityError(DBError):
 
 open_lock: Final[Lock] = Lock()
 
-qinit: Final[tuple[str]] = (
+qinit: Final[tuple[str, ...]] = (
     """
 CREATE TABLE folder (
     id INTEGER PRIMARY KEY,
@@ -82,7 +89,7 @@ CREATE TABLE prog_vid_link (
     """
 CREATE TABLE tag (
     id INTEGER PRIMARY KEY,
-    name TEXT UNIQUE NOT NULL,
+    name TEXT UNIQUE NOT NULL
 ) STRICT
     """,
     """
@@ -103,7 +110,7 @@ CREATE TABLE tag_vid_link (
 CREATE TABLE person (
     id INTEGER PRIMARY KEY,
     name TEXT UNIQUE NOT NULL,
-    born: INTEGER
+    born INTEGER
 ) STRICT
     """,
     """
@@ -123,6 +130,7 @@ CREATE TABLE person_vid_link (
     """,
 )
 
+
 @unique
 class qid(IntEnum):
     """qid is a symbolic constant representing a database query."""
@@ -136,11 +144,24 @@ class qid(IntEnum):
     VideoAdd = auto()
     VideoSetTitle = auto()
     VideoSetCksum = auto()
+    VideoGetByID = auto()
+    VideoGetByPath = auto()
+    VideoGetAll = auto()
     ProgramAdd = auto()
     ProgramSetTitle = auto()
     ProgramAddVideo = auto()
+    ProgramGetAll = auto()
+    ProgramGetVideos = auto()
     TagCreate = auto()
     TagLinkCreate = auto()
+    TagLinkGetByTag = auto()
+    TagLinkGetByVid = auto()
+    PersonAdd = auto()
+    PersonUpdateName = auto()
+    PersonUpdateBorn = auto()
+    LinkPersonAdd = auto()
+    LinkPersonGetByPerson = auto()
+    LinkPersonGetByVid = auto()
 
 
 qdb: dict[qid, str] = {
@@ -178,8 +199,243 @@ FROM folder
 WHERE path = ?
     """,
     qid.VideoAdd: "INSERT INTO video (folder_id, path, added) VALUES (?, ?, ?)",
+    qid.VideoSetTitle: "UPDATE video SET title = ? WHERE id = ?",
+    qid.VideoSetCksum: "UPDATE video SET cksum = ? WHERE id = ?",
+    qid.VideoGetByID: """
+SELECT
+    folder_id,
+    path,
+    added,
+    title,
+    cksum
+FROM video
+WHERE id = ?
+    """,
+    qid.VideoGetByPath: """
+SELECT
+    id,
+    folder_id,
+    added,
+    title,
+    cksum
+FROM video
+WHERE path = ?
+    """,
+    qid.VideoGetAll: """
+SELECT
+    id,
+    folder_id,
+    path,
+    added,
+    title,
+    cksum
+FROM video
+    """,
+    qid.ProgramAdd: "INSERT INTO program (title) VALUES (?)",
+    qid.ProgramSetTitle: "UPDATE program SET title = ? WHERE id = ?",
+    qid.ProgramAddVideo: "INSERT INTO prog_vid_link (prog_id, vid_id) VALUES (?, ?)",
+    qid.ProgramGetAll: """
+SELECT
+    id,
+    title
+FROM program
+    """,
+    qid.ProgramGetVideos: """
+SELECT
+    v.id,
+    v.folder_id,
+    v.path,
+    v.added,
+    v.title,
+    v.cksum
+FROM prog_vid_link p
+INNER JOIN video v ON p.vid_id = v.id
+WHERE p.prog_id = ?
+    """,
+    qid.TagCreate: "INSERT INTO tag (name) VALUES (?)",
+    qid.TagLinkCreate: "INSERT INTO tag_vid_link (tag_id, vid_id) VALUES (?, ?)",
+    qid.TagLinkGetByTag: """
+SELECT
+    v.id,
+    v.folder_id,
+    v.path,
+    v.added,
+    v.title,
+    v.cksum,
+    f.path
+FROM tag_vid_link t
+INNER JOIN video v ON t.vid_id = v.id
+INNER JOIN folder f ON v.folder_id = f.id
+WHERE t.tag_id = ?
+ORDER BY f.path, v.path
+    """,
+    qid.TagLinkGetByVid: """
+SELECT
+    t.id,
+    t.name
+FROM tag t
+WHERE t.vid_id = ?
+    """,
+    qid.PersonAdd: "INSERT INTO person (name) VALUES (?)",
+    qid.PersonUpdateName: "UPDATE person SET name = ? WHERE id = ?",
+    qid.PersonUpdateBorn: "UPDATE person SET born = ? WHERE id = ?",
+    qid.LinkPersonAdd: "INSERT INTO person_vid_link (pid, vid, role) VALUES (?, ?, ?)",
+    qid.LinkPersonGetByPerson: """
+SELECT
+    vid,
+    role
+FROM person_vid_link
+WHERE pid = ?
+    """,
+    qid.LinkPersonGetByVid: """
+SELECT
+    pid,
+    role
+FROM person_vid_link
+WHERE vid = ?
+""",
 }
-    
+
+
+class Database:
+    """Database is a wrapper for the database connection."""
+
+    __slots__ = [
+        "db",
+        "log",
+        "path",
+    ]
+
+    db: sqlite3.Connection
+    log: logging.Logger
+    path: str
+
+    def __init__(self, path: str = "") -> None:
+        if path == "":
+            self.path = common.path.db()
+        else:
+            self.path = path
+
+        self.log = common.get_logger("database")
+        self.log.debug("Open database at %s", self.path)
+
+        uri: Final[str] = \
+            f"file:{self.path}?_locking=NORMAL&_journal=WAL&_fk=1&recursive_triggers=0"
+
+        with open_lock:
+            exist: Final[bool] = krylib.fexist(self.path)
+            self.db = sqlite3.connect(
+                uri,
+                check_same_thread=False,
+                uri=True,
+                timeout=5.0,
+            )
+
+            cur = self.db.cursor()
+            cur.execute("PRAGMA foreign_keys = true")
+            cur.execute("PRAGMA journal_mode = WAL")
+            cur.close()
+            # self.db.commit()
+            self.db.autocommit = False
+
+            if not exist:
+                self.__create_db()
+
+    def __create_db(self) -> None:
+        with self.db:
+            for q in qinit:
+                self.log.debug("Execute SQL: %s", q)
+                cur: sqlite3.Cursor = self.db.cursor()
+                cur.execute(q)
+
+    def __enter__(self) -> None:
+        self.db.__enter__()
+
+    def __exit__(self, ex_type, ex_val, traceback):
+        return self.db.__exit__(ex_type, ex_val, traceback)
+
+    def close(self) -> None:
+        """Close the underlying database connection explicitly."""
+        self.db.close()
+
+    def folder_add(self, f: Folder) -> None:
+        """Add a Folder to the database."""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.FolderAdd],
+                    (f.path,
+                     int(f.last_scan.timestamp()) if f.last_scan is not None else None,
+                     f.remote))
+        fid = cur.lastrowid
+        assert fid is not None
+        f.fid = fid
+
+    def folder_update_scan(self, f: Folder, s: datetime) -> None:
+        """Set a Folder's scan timestamp."""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.FolderUpdateScan], (int(s.timestamp()), f.fid))
+        f.last_scan = s
+
+    def folder_set_remote(self, f: Folder, remote: bool) -> None:
+        """Set a Folder's remote flag."""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.FolderSetRemote], (remote, f.fid))
+        f.remote = remote
+
+    def folder_get_all(self) -> list[Folder]:
+        """Get all Folders from the database."""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.FolderGetAll])
+
+        folders: list[Folder] = []
+
+        for row in cur:
+            f: Folder = Folder(
+                fid=row[0],
+                path=row[1],
+                last_scan=(datetime.fromtimestamp(row[2]) if row[2] is not None else None),
+                remote=row[3],
+            )
+            folders.append(f)
+
+        return folders
+
+    def folder_get_by_id(self, fid: int) -> Optional[Folder]:
+        """Look up a Folder by its ID."""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.FolderGetByID], (fid, ))
+
+        row = cur.fetchone()
+
+        if row is None:
+            return None
+
+        f: Folder = Folder(
+            fid=fid,
+            path=row[0],
+            last_scan=(None if row[1] is None else datetime.fromtimestamp(row[1])),
+            remote=row[2],
+        )
+
+        return f
+
+    def folder_get_by_path(self, path: str) -> Optional[Folder]:
+        """Look up a Folder by its ID."""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.FolderGetByPath], (path, ))
+
+        row = cur.fetchone()
+
+        if row is None:
+            return None
+
+        f: Folder = Folder(
+            fid=row[0],
+            path=path,
+            last_scan=(None if row[1] is None else datetime.fromtimestamp(row[1])),
+            remote=row[2],
+        )
+
+        return f
 
 # Local Variables: #
 # python-indent: 4 #
