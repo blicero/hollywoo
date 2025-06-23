@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-23 18:52:25 krylon>
+# Time-stamp: <2025-06-23 19:49:42 krylon>
 #
 # /data/code/python/hollywoo/database.py
 # created on 21. 06. 2025
@@ -26,7 +26,7 @@ from typing import Final, Optional
 import krylib
 
 from hollywoo import common
-from hollywoo.model import Folder
+from hollywoo.model import Folder, Video
 
 
 class DBError(common.HollywooError):
@@ -436,6 +436,71 @@ class Database:
         )
 
         return f
+
+    def video_add(self, v: Video) -> None:
+        """Add a Video to the database."""
+        now: Final[datetime] = datetime.now()
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.VideoAdd],
+                    (v.folder_id,
+                     v.path,
+                     int(now.timestamp())))
+        v.added = now
+
+    def video_set_title(self, v: Video, title: str) -> None:
+        """Set a Video's title."""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.VideoSetTitle],
+                    (title, v.vid))
+        v.title = title
+
+    def video_set_cksum(self, v: Video, ck: Optional[str]) -> None:
+        """Set or clear a Video's Checksum."""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.VideoSetCksum],
+                    (ck, v.vid))
+        v.cksum = ck
+
+    def video_get_by_id(self, vid: int) -> Optional[Video]:
+        """Look up a Video by its ID."""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.VideoGetByID], (vid, ))
+        row = cur.fetchone()
+        if row is None:
+            return None
+
+        v = Video(
+            vid=vid,
+            folder_id=row[0],
+            path=row[1],
+            added=datetime.fromtimestamp(row[2]),
+            title=row[3],
+            cksum=row[4],
+        )
+
+        return v
+
+    def video_get_all(self) -> list[Video]:
+        """Get all videos from the database."""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.VideoGetAll])
+
+        vids = []
+
+        for row in cur:
+            v = Video(
+                vid=row[0],
+                folder_id=row[1],
+                path=row[2],
+                added=datetime.fromtimestamp(row[3]),
+                title=row[4],
+                cksum=row[5],
+            )
+
+            vids.append(v)
+
+        return vids
+
 
 # Local Variables: #
 # python-indent: 4 #
