@@ -1,5 +1,5 @@
 # -*- mode: org; fill-column: 78; -*-
-# Time-stamp: <2025-06-23 19:18:44 krylon>
+# Time-stamp: <2025-06-23 20:32:46 krylon>
 #
 #+TAGS: internals(i) ui(u) bug(b) feature(f)
 #+TAGS: database(d) design(e), meditation(m)
@@ -16,15 +16,15 @@
   A naive video library
 ** Clocktable
    #+BEGIN: clocktable :scope file :maxlevel 255 :emphasize t
-   #+CAPTION: Clock summary at [2025-06-23 Mo 19:18]
+   #+CAPTION: Clock summary at [2025-06-23 Mo 20:32]
    | Headline               | Time   |        |      |
    |------------------------+--------+--------+------|
-   | *Total time*           | *4:42* |        |      |
+   | *Total time*           | *5:12* |        |      |
    |------------------------+--------+--------+------|
-   | *Hollywoo [0/0]*       | *4:42* |        |      |
-   | \_  /Components [0/0]/ |        | /4:42/ |      |
+   | *Hollywoo [0/0]*       | *5:12* |        |      |
+   | \_  /Components [0/0]/ |        | /5:12/ |      |
    | \_    Model [0/0]      |        |        | 0:17 |
-   | \_    Database [0/0]   |        |        | 4:25 |
+   | \_    Database [0/0]   |        |        | 4:55 |
    #+END:
 ** Journal
 ** Features [0/0]
@@ -51,6 +51,7 @@
     :VISIBILITY: children
     :END:
     :LOGBOOK:
+    CLOCK: [2025-06-23 Mo 19:20]--[2025-06-23 Mo 19:50] =>  0:30
     CLOCK: [2025-06-23 Mo 18:20]--[2025-06-23 Mo 19:18] =>  0:58
     CLOCK: [2025-06-23 Mo 17:42]--[2025-06-23 Mo 18:08] =>  0:26
     CLOCK: [2025-06-22 So 16:48]--[2025-06-22 So 17:07] =>  0:19
