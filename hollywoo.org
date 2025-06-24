@@ -1,5 +1,5 @@
 # -*- mode: org; fill-column: 78; -*-
-# Time-stamp: <2025-06-24 15:23:47 krylon>
+# Time-stamp: <2025-06-24 19:45:57 krylon>
 #
 #+TAGS: internals(i) ui(u) bug(b) feature(f)
 #+TAGS: database(d) design(e), meditation(m)
@@ -8,7 +8,7 @@
 #+TODO: MEDITATE(m) PLANNING(p) | SUSPENDED(s)
 #+PRIORITIES: A G D
 
-* Hollywoo [0/0]
+* Hollywoo [1/2]
   :PROPERTIES:
   :COOKIE_DATA: todo recursive
   :VISIBILITY: children
@@ -16,16 +16,16 @@
   A naive video library
 ** Clocktable
    #+BEGIN: clocktable :scope file :maxlevel 255 :emphasize t
-   #+CAPTION: Clock summary at [2025-06-24 Di 15:20]
+   #+CAPTION: Clock summary at [2025-06-24 Di 19:45]
    | Headline               | Time   |        |      |
    |------------------------+--------+--------+------|
-   | *Total time*           | *6:14* |        |      |
+   | *Total time*           | *8:14* |        |      |
    |------------------------+--------+--------+------|
-   | *Hollywoo [0/0]*       | *6:14* |        |      |
-   | \_  /Components [0/0]/ |        | /6:14/ |      |
+   | *Hollywoo [1/2]*       | *8:14* |        |      |
+   | \_  /Components [1/2]/ |        | /8:14/ |      |
    | \_    Model [0/0]      |        |        | 0:17 |
-   | \_    Database [0/0]   |        |        | 5:00 |
-   | \_    Scanner [0/1]    |        |        | 0:57 |
+   | \_    Database [0/1]   |        |        | 5:00 |
+   | \_    Scanner [1/1]    |        |        | 2:57 |
    #+END:
 ** Journal
 ** Features [0/0]
@@ -33,7 +33,7 @@
    :COOKIE_DATA: todo recursive
    :VISIBILITY: children
    :END:
-** Components [0/0]
+** Components [1/2]
    :PROPERTIES:
    :COOKIE_DATA: todo recursive
    :VISIBILITY: children
@@ -46,7 +46,7 @@
     :LOGBOOK:
     CLOCK: [2025-06-21 Sa 17:45]--[2025-06-21 Sa 18:02] =>  0:17
     :END:
-*** Database [0/0]
+*** Database [0/1]
     :PROPERTIES:
     :COOKIE_DATA: todo recursive
     :VISIBILITY: children
@@ -60,22 +60,35 @@
     CLOCK: [2025-06-21 Sa 18:51]--[2025-06-21 Sa 21:00] =>  2:09
     CLOCK: [2025-06-21 Sa 18:02]--[2025-06-21 Sa 18:35] =>  0:33
     :END:
-*** Scanner [0/1]
+**** MEDITATE Relative paths?
+     I had this problem before - if I store the full path of every file, that
+     amounts to a lot of wasted space. I *could* attempt to store the path
+     only relative to the folder a Video was found in.
+     However, that causes a lot of headaches I am not sure I am ready to
+     handle. And I am not sure, either, if it is worth the effort.
+     Still, might be a fun way to spend an otherwise boring weekend.
+*** Scanner [1/1]
     :PROPERTIES:
     :COOKIE_DATA: todo recursive
     :VISIBILITY: children
     :END:
     :LOGBOOK:
+    CLOCK: [2025-06-24 Di 17:45]--[2025-06-24 Di 19:45] =>  2:00
     CLOCK: [2025-06-24 Di 14:40]--[2025-06-24 Di 15:20] =>  0:40
     CLOCK: [2025-06-23 Mo 21:03]--[2025-06-23 Mo 21:20] =>  0:17
     :END:
-**** TODO Extract title from metadata?
+**** DONE Extract title from metadata?
+     CLOSED: [2025-06-24 Di 19:45]
      I *could* attempt to process a Video's metadata, to see if it has a title
      embedded. /If/ successful, I could use that.
      I could, in fact, attempt to process other metadata, too, to get links to
      People.
      python3-av provides bindings to ffmpeg, on SuSE it's called python313-av.
      pymediainfo could also be worth looking into.
+     *Update* Yes, pymediainfo appears to be what I was looking
+     for. Processing the data is going to be tedious (/very/ tedious), but it
+     should be doable.
+     That is going to complicate my model, though.
 *** GUI [0/0]
     :PROPERTIES:
     :COOKIE_DATA: todo recursive
