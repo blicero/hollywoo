@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-23 19:49:42 krylon>
+# Time-stamp: <2025-06-24 15:00:26 krylon>
 #
 # /data/code/python/hollywoo/database.py
 # created on 21. 06. 2025
@@ -478,6 +478,23 @@ class Database:
             cksum=row[4],
         )
 
+        return v
+
+    def video_get_by_path(self, path: str) -> Optional[Video]:
+        """Look for a Video by its path."""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.VideoGetByPath], (path, ))
+        row = cur.fetchone()
+        if row is None:
+            return None
+        v: Video = Video(
+            vid=row[0],
+            folder_id=row[1],
+            path=path,
+            added=datetime.fromtimestamp(row[2]),
+            title=row[3],
+            cksum=row[4],
+        )
         return v
 
     def video_get_all(self) -> list[Video]:
