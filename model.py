@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-24 14:55:22 krylon>
+# Time-stamp: <2025-06-24 18:50:32 krylon>
 #
 # /data/code/python/hollywoo/model.py
 # created on 21. 06. 2025
@@ -18,9 +18,17 @@ hollywoo.model
 This module provides the domain-specific data types for use in our application.
 """
 
+import os
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Optional
+from typing import NamedTuple, Optional
+
+
+class Resolution(NamedTuple):
+    """Resolution is the size of a Video in pixels."""
+
+    x: int
+    y: int
 
 
 @dataclass(slots=True, kw_only=True)
@@ -41,8 +49,17 @@ class Video:
     folder_id: int
     path: str
     added: datetime = field(default_factory=datetime.now)
+    mtime: datetime
     title: Optional[str] = None
     cksum: Optional[str] = None
+    resolution: Resolution
+    duration: int  # duration in milliseconds
+
+    @property
+    def size(self) -> int:
+        """Get the Video's size, in bytes."""
+        st = os.stat(self.path)
+        return st.st_size
 
 
 @dataclass(slots=True, kw_only=True)

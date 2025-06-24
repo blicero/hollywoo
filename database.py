@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-24 15:00:26 krylon>
+# Time-stamp: <2025-06-24 19:42:20 krylon>
 #
 # /data/code/python/hollywoo/database.py
 # created on 21. 06. 2025
@@ -26,7 +26,7 @@ from typing import Final, Optional
 import krylib
 
 from hollywoo import common
-from hollywoo.model import Folder, Video
+from hollywoo.model import Folder, Resolution, Video
 
 
 class DBError(common.HollywooError):
@@ -56,9 +56,15 @@ CREATE TABLE video (
     folder_id INTEGER NOT NULL,
     path TEXT NOT NULL,
     added INTEGER NOT NULL,
+    mtime INTEGER NOT NULL,
     title TEXT NOT NULL DEFAULT '',
     cksum TEXT,
+    xres INTEGER,
+    yres INTEGER,
+    duration INTEGER,
     UNIQUE (folder_id, path),
+    CHECK ((xres IS NULL) = (yres IS NULL)),
+    CHECK (duration IS NULL OR duration > 0),
     FOREIGN KEY (folder_id) REFERENCES folder (id)
         ON UPDATE RESTRICT
         ON DELETE CASCADE
@@ -66,6 +72,8 @@ CREATE TABLE video (
     """,
     "CREATE INDEX vid_folder_idx ON video (folder_id)",
     "CREATE INDEX vid_path_idx ON video (path)",
+    "CREATE INDEX vid_res_idx ON video (xres, yres)",
+    "CREATE INDEX vid_dur_idx ON video (duration)",
     """
 CREATE TABLE program (
     id INTEGER PRIMARY KEY,
@@ -144,9 +152,12 @@ class qid(IntEnum):
     VideoAdd = auto()
     VideoSetTitle = auto()
     VideoSetCksum = auto()
+    VideoSetMtime = auto()
     VideoGetByID = auto()
     VideoGetByPath = auto()
     VideoGetAll = auto()
+    VideoSetResolution = auto()
+    VideoSetDuration = auto()
     ProgramAdd = auto()
     ProgramSetTitle = auto()
     ProgramAddVideo = auto()
@@ -198,16 +209,26 @@ SELECT
 FROM folder
 WHERE path = ?
     """,
-    qid.VideoAdd: "INSERT INTO video (folder_id, path, added) VALUES (?, ?, ?)",
+    qid.VideoAdd: """
+INSERT INTO video (folder_id, path, added, mtime, xres, yres, duration)
+           VALUES (        ?,    ?,     ?,     ?,    ?,    ?,        ?)
+""",
     qid.VideoSetTitle: "UPDATE video SET title = ? WHERE id = ?",
     qid.VideoSetCksum: "UPDATE video SET cksum = ? WHERE id = ?",
+    qid.VideoSetMtime: "UPDATE video SET mtime = ? WHERE id = ?",
+    qid.VideoSetResolution: "UPDATE video SET xres = ?, yres = ? WHERE id = ?",
+    qid.VideoSetDuration: "UPDATE video SET duration = ? WHERE id = ?",
     qid.VideoGetByID: """
 SELECT
     folder_id,
     path,
     added,
+    mtime,
     title,
-    cksum
+    cksum,
+    xres,
+    yres,
+    duration
 FROM video
 WHERE id = ?
     """,
@@ -216,8 +237,12 @@ SELECT
     id,
     folder_id,
     added,
+    mtime,
     title,
-    cksum
+    cksum,
+    xres,
+    yres,
+    duration
 FROM video
 WHERE path = ?
     """,
@@ -227,8 +252,12 @@ SELECT
     folder_id,
     path,
     added,
+    mtime,
     title,
-    cksum
+    cksum,
+    xres,
+    yres,
+    duration
 FROM video
     """,
     qid.ProgramAdd: "INSERT INTO program (title) VALUES (?)",
@@ -444,11 +473,22 @@ class Database:
         cur.execute(qdb[qid.VideoAdd],
                     (v.folder_id,
                      v.path,
-                     int(now.timestamp())))
+                     int(now.timestamp()),
+                     int(v.mtime.timestamp()),
+                     v.resolution.x,
+                     v.resolution.y,
+                     v.duration))
         v.added = now
+        vid = cur.lastrowid
+        assert vid is not None
+        v.vid = vid
 
     def video_set_title(self, v: Video, title: str) -> None:
         """Set a Video's title."""
+        self.log.debug("Set title of Video %d (%s) => %s",
+                       v.vid,
+                       v.path,
+                       title)
         cur = self.db.cursor()
         cur.execute(qdb[qid.VideoSetTitle],
                     (title, v.vid))
@@ -460,6 +500,12 @@ class Database:
         cur.execute(qdb[qid.VideoSetCksum],
                     (ck, v.vid))
         v.cksum = ck
+
+    def video_set_mtime(self, v: Video, mtime: datetime) -> None:
+        """Update a Videos mtime timestamp."""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.VideoSetMtime], (int(mtime.timestamp()), v.vid))
+        v.mtime = mtime
 
     def video_get_by_id(self, vid: int) -> Optional[Video]:
         """Look up a Video by its ID."""
@@ -474,8 +520,11 @@ class Database:
             folder_id=row[0],
             path=row[1],
             added=datetime.fromtimestamp(row[2]),
-            title=row[3],
-            cksum=row[4],
+            mtime=datetime.fromtimestamp(row[3]),
+            title=row[4],
+            cksum=row[5],
+            resolution=Resolution(row[6], row[7]),
+            duration=row[8],
         )
 
         return v
@@ -492,8 +541,11 @@ class Database:
             folder_id=row[1],
             path=path,
             added=datetime.fromtimestamp(row[2]),
-            title=row[3],
-            cksum=row[4],
+            mtime=datetime.fromtimestamp(row[3]),
+            title=row[4],
+            cksum=row[5],
+            resolution=Resolution(row[6], row[7]),
+            duration=row[8],
         )
         return v
 
@@ -510,8 +562,11 @@ class Database:
                 folder_id=row[1],
                 path=row[2],
                 added=datetime.fromtimestamp(row[3]),
-                title=row[4],
-                cksum=row[5],
+                mtime=datetime.fromtimestamp(row[4]),
+                title=row[5],
+                cksum=row[6],
+                resolution=Resolution(row[7], row[8]),
+                duration=row[9],
             )
 
             vids.append(v)

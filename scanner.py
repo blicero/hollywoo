@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-24 15:01:31 krylon>
+# Time-stamp: <2025-06-24 19:35:36 krylon>
 #
 # /data/code/python/hollywoo/scanner.py
 # created on 23. 06. 2025
@@ -19,11 +19,15 @@ hollywoo.scanner
 import logging
 import os
 import re
+from collections import defaultdict
+from datetime import datetime
 from typing import Final, Optional
+
+from pymediainfo import MediaInfo
 
 from hollywoo import common
 from hollywoo.database import Database
-from hollywoo.model import Folder, Video
+from hollywoo.model import Folder, Resolution, Video
 
 min_size: Final[int] = 1024 * 1024 * 100  # 100MiB
 suffix_pat: Final[re.Pattern] = \
@@ -47,7 +51,8 @@ class Scanner:
 
     def skip_file(self, f: str) -> bool:
         """Return True if the file f is to be skipped."""
-        if suffix_pat.match(f) or not os.path.isfile(f):
+        if (suffix_pat.search(f) is None) or \
+           (not os.path.isfile(f)):
             return True
 
         s = os.stat(f)
@@ -66,22 +71,59 @@ class Scanner:
                     path=self.path
                 )
                 self.db.folder_add(root)
-            for dirpath, folders, files in os.walk(self.path):
+            for dirpath, _folders, files in os.walk(self.path):
                 for f in files:
                     full_path = os.path.join(dirpath, f)
                     if self.skip_file(full_path):
+                        self.log.debug("Skip %s", full_path)
                         continue
+                    st = os.stat(full_path)
+                    mtime = datetime.fromtimestamp(st.st_mtime)
 
                     vid: Optional[Video] = self.db.video_get_by_path(full_path)
                     if vid is not None:
-                        continue
+                        self.log.debug("Video %s is already in database (%d)",
+                                       full_path,
+                                       vid.vid)
+                        if mtime > vid.mtime:
+                            self.db.video_set_mtime(vid, mtime)
+
+                    # Attempt to extract metadata
+                    meta = self._get_metadata(full_path)
+                    if meta["resolution"] is None:
+                        self.log.info("Cannot determine resolution of %s",
+                                      full_path)
+                        meta["resolution"] = Resolution(0, 0)
 
                     vid = Video(
                         folder_id=root.fid,
                         path=full_path,
+                        mtime=mtime,
+                        resolution=meta["resolution"],
+                        duration=meta["duration"],
                     )
 
+                    self.log.debug("Add Video %s to database", full_path)
                     self.db.video_add(vid)
+                    if meta["title"] is not None and len(meta["title"]) > 0:
+                        self.log.debug("Set title for %s => %s",
+                                       full_path,
+                                       meta["title"])
+                        self.db.video_set_title(vid, meta["title"])
+            self.db.folder_update_scan(root, datetime.now())
+
+    def _get_metadata(self, vid: str) -> defaultdict:
+        m = MediaInfo.parse(vid)
+        info: defaultdict = defaultdict(lambda: None)
+        if len(m.video_tracks) == 0 or len(m.general_tracks) == 0:
+            return info
+        info["resolution"] = Resolution(m.video_tracks[0].width,
+                                        m.video_tracks[0].height)
+        info["duration"] = m.video_tracks[0].duration
+        info["title"] = m.general_tracks[0].title or m.general_tracks[0].movie_name
+        info["performer"] = m.general_tracks[0].performer
+
+        return info
 
 
 # Local Variables: #
