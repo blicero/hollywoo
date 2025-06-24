@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-24 19:35:36 krylon>
+# Time-stamp: <2025-06-24 20:10:34 krylon>
 #
 # /data/code/python/hollywoo/scanner.py
 # created on 23. 06. 2025
@@ -40,22 +40,32 @@ class Scanner:
     path: str
     db: Database
     log: logging.Logger
+    _cache: dict
 
     def __init__(self, path: str) -> None:
         self.path = path
         self.db = Database()
         self.log = common.get_logger("scanner")
+        self._cache = {}
 
         if not os.path.isdir(path):
             raise ValueError(f"{path} is not a directory")
 
+    def stat(self, path: str) -> os.stat_result:
+        """Attempt to get a file's filesystem metadata."""
+        if path in self._cache:
+            return self._cache[path]
+
+        s = os.stat(path)
+        self._cache[path] = s
+        return s
+
     def skip_file(self, f: str) -> bool:
         """Return True if the file f is to be skipped."""
-        if (suffix_pat.search(f) is None) or \
-           (not os.path.isfile(f)):
+        if suffix_pat.search(f) is None:
             return True
 
-        s = os.stat(f)
+        s = self.stat(f)
         if s.st_size < min_size:
             return True
 
@@ -75,9 +85,8 @@ class Scanner:
                 for f in files:
                     full_path = os.path.join(dirpath, f)
                     if self.skip_file(full_path):
-                        self.log.debug("Skip %s", full_path)
                         continue
-                    st = os.stat(full_path)
+                    st = self.stat(full_path)
                     mtime = datetime.fromtimestamp(st.st_mtime)
 
                     vid: Optional[Video] = self.db.video_get_by_path(full_path)
@@ -111,6 +120,7 @@ class Scanner:
                                        meta["title"])
                         self.db.video_set_title(vid, meta["title"])
             self.db.folder_update_scan(root, datetime.now())
+        self._cache.clear()
 
     def _get_metadata(self, vid: str) -> defaultdict:
         m = MediaInfo.parse(vid)
