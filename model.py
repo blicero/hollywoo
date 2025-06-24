@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-21 18:52:54 krylon>
+# Time-stamp: <2025-06-24 14:55:22 krylon>
 #
 # /data/code/python/hollywoo/model.py
 # created on 21. 06. 2025
@@ -41,7 +41,7 @@ class Video:
     folder_id: int
     path: str
     added: datetime = field(default_factory=datetime.now)
-    title: str
+    title: Optional[str] = None
     cksum: Optional[str] = None
 
 
