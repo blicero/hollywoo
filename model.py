@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-24 18:50:32 krylon>
+# Time-stamp: <2025-06-24 22:44:28 krylon>
 #
 # /data/code/python/hollywoo/model.py
 # created on 21. 06. 2025
@@ -29,6 +29,12 @@ class Resolution(NamedTuple):
 
     x: int
     y: int
+
+    def __str__(self) -> str:
+        return f"{self.x}x{self.y}"
+
+    def __repr__(self) -> str:
+        return f"{self.x}x{self.y}"
 
 
 @dataclass(slots=True, kw_only=True)
