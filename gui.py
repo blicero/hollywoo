@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-25 19:38:55 krylon>
+# Time-stamp: <2025-06-25 23:34:38 krylon>
 #
 # /data/code/python/hollywoo/gui.py
 # created on 24. 06. 2025
@@ -37,7 +37,7 @@ from gi.repository import \
     Gtk as gtk  # noqa: E402,F401 pylint: disable-msg=C0413,C0411,W0611 # type: ignore
 
 
-class GUI:  # pylint: disable-msg=I1101,E1101
+class GUI:  # pylint: disable-msg=I1101,E1101,R0902
     """A GUI like no other."""
 
     def __init__(self) -> None:
@@ -88,6 +88,15 @@ class GUI:  # pylint: disable-msg=I1101,E1101
         self.fm_item_add = gtk.MenuItem.new_with_mnemonic("_Add Folder")
         self.fm_item_scan = gtk.MenuItem.new_with_mnemonic("_Scan Folders")
         self.fm_item_quit = gtk.MenuItem.new_with_mnemonic("_Quit")
+
+        self.menubar.add(self.mb_file_item)
+        self.menubar.add(self.mb_edit_item)
+        self.menubar.add(self.mb_debug_item)
+
+        self.mb_file_item.set_submenu(self.menu_file)
+        self.menu_file.add(self.fm_item_add)
+        self.menu_file.add(self.fm_item_scan)
+        self.menu_file.add(self.fm_item_quit)
 
         # Create the TreeViews and models
 
@@ -142,6 +151,8 @@ class GUI:  # pylint: disable-msg=I1101,E1101
         # Register signal handlers
 
         self.win.connect("destroy", self._quit)
+
+        self.fm_item_quit.connect("activate", self._quit)
 
         # And show yourself, you cowardly window!
 
