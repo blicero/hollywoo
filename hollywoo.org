@@ -1,5 +1,5 @@
 # -*- mode: org; fill-column: 78; -*-
-# Time-stamp: <2025-06-24 20:14:54 krylon>
+# Time-stamp: <2025-06-25 19:39:04 krylon>
 #
 #+TAGS: internals(i) ui(u) bug(b) feature(f)
 #+TAGS: database(d) design(e), meditation(m)
@@ -16,16 +16,17 @@
   A naive video library
 ** Clocktable
    #+BEGIN: clocktable :scope file :maxlevel 255 :emphasize t
-   #+CAPTION: Clock summary at [2025-06-24 Di 20:14]
-   | Headline               | Time   |        |      |
-   |------------------------+--------+--------+------|
-   | *Total time*           | *8:38* |        |      |
-   |------------------------+--------+--------+------|
-   | *Hollywoo [1/2]*       | *8:38* |        |      |
-   | \_  /Components [1/2]/ |        | /8:38/ |      |
-   | \_    Model [0/0]      |        |        | 0:17 |
-   | \_    Database [0/1]   |        |        | 5:00 |
-   | \_    Scanner [1/1]    |        |        | 3:21 |
+   #+CAPTION: Clock summary at [2025-06-25 Mi 19:39]
+   | Headline               | Time    |         |      |
+   |------------------------+---------+---------+------|
+   | *Total time*           | *10:51* |         |      |
+   |------------------------+---------+---------+------|
+   | *Hollywoo [1/2]*       | *10:51* |         |      |
+   | \_  /Components [1/2]/ |         | /10:51/ |      |
+   | \_    Model [0/0]      |         |         | 0:17 |
+   | \_    Database [0/1]   |         |         | 5:00 |
+   | \_    Scanner [1/1]    |         |         | 3:21 |
+   | \_    GUI [0/0]        |         |         | 2:13 |
    #+END:
 ** Journal
 ** Features [0/0]
@@ -94,4 +95,7 @@
     :PROPERTIES:
     :COOKIE_DATA: todo recursive
     :VISIBILITY: children
+    :END:
+    :LOGBOOK:
+    CLOCK: [2025-06-25 Mi 17:26]--[2025-06-25 Mi 19:39] =>  2:13
     :END:
