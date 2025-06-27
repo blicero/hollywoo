@@ -16,25 +16,69 @@ hollywoo.gui
 (c) 2025 Benjamin Walkenhorst
 """
 
-from threading import Lock
-from typing import Final
+from enum import Enum, auto
+from queue import Empty, Queue, ShutDown
+from threading import Lock, Thread
+from typing import Any, Final, NamedTuple
 
 import gi  # type: ignore
 
 from hollywoo import common
 from hollywoo.database import Database
+from hollywoo.model import Folder
+from hollywoo.scanner import Scanner
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GLib", "2.0")
 gi.require_version("Gio", "2.0")
 
+# from gi.repository import \
+#     Gdk as \
+#     gdk  # noqa: E402,F401 pylint: disable-msg=C0413,C0411,W0611 # type: ignore
 from gi.repository import \
-    Gdk as gdk  # noqa: E402,F401 pylint: disable-msg=C0413,C0411,W0611 # type: ignore
+    GLib as \
+    glib  # noqa: E402,F401 pylint: disable-msg=C0413,C0411,W0611 # type: ignore
 from gi.repository import \
-    GLib as glib  # noqa: E402,F401 pylint: disable-msg=C0413,C0411,W0611 # type: ignore
-from gi.repository import \
-    Gtk as gtk  # noqa: E402,F401 pylint: disable-msg=C0413,C0411,W0611 # type: ignore
+    Gtk as \
+    gtk  # noqa: E402,F401 pylint: disable-msg=C0413,C0411,W0611 # type: ignore
+
+root_cols: Final[list[tuple[str, type]]] = [
+    ("ID", int),
+    ("Path", str),
+    ("Last Scan", str),
+    ("Remote?", bool),
+]
+
+vid_cols: Final[list[tuple[str, type]]] = [  # noqa: F841 pylint: disable-msg=W0612
+    ("ID", int),
+    ("Path", str),
+    ("Title", str),
+    ("Resolution", str),
+    ("Duration", str),
+    ("Tags", str),
+    ("People", str),
+]
+
+# tag_cols: Final[list[tuple[str, type]]] = [  # noqa: F841 pylint: disable-msg=W0612
+#     ("ID", int),
+#     ("Name", str),
+# ]
+
+
+class MsgType(Enum):
+    """MsgType identifies a type of event the GUI thread might want to know about."""
+
+    NothingBurger = auto()
+    ScanComplete = auto()
+    ScanError = auto()
+
+
+class Message(NamedTuple):
+    """Message is a tag and a payload to inform the GUI of things happening in other threads."""
+
+    tag: MsgType
+    payload: Any
 
 
 class GUI:  # pylint: disable-msg=I1101,E1101,R0902
@@ -44,28 +88,7 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         self.log = common.get_logger("gui")
         self.lock = Lock()
         self.db = Database()
-
-        root_cols: Final[list[tuple[str, type]]] = [
-            ("ID", int),
-            ("Path", str),
-            ("Last Scan", str),
-            ("Remote?", bool),
-        ]
-
-        vid_cols: Final[list[tuple[str, type]]] = [  # noqa: F841 pylint: disable-msg=W0612
-            ("ID", int),
-            ("Path", str),
-            ("Title", str),
-            ("Resolution", str),
-            ("Duration", str),
-            ("Tags", str),
-            ("People", str),
-        ]
-
-        tag_cols: Final[list[tuple[str, type]]] = [  # noqa: F841 pylint: disable-msg=W0612
-            ("ID", int),
-            ("Name", str),
-        ]
+        self.mq: Queue[Message] = Queue()
 
         # Create the widgets.
 
@@ -103,23 +126,31 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         self.root_store = gtk.ListStore(*(c[1] for c in root_cols))
         self.root_view = gtk.TreeView(model=self.root_store)
         self.root_sw = gtk.ScrolledWindow.new(None, None)
+        self.root_sw.set_vexpand(True)
+        self.root_sw.set_hexpand(True)
 
         for c in ((i, root_cols[i][0]) for i in range(len(root_cols))):
             col = gtk.TreeViewColumn(c[1],
                                      gtk.CellRendererText(),
                                      text=c[0],
                                      size=12)
+            col.set_reorderable(True)
+            col.set_resizable(True)
             self.root_view.append_column(col)
 
         self.vid_store = gtk.ListStore(*(c[1] for c in vid_cols))
         self.vid_view = gtk.TreeView(model=self.vid_store)
         self.vid_sw = gtk.ScrolledWindow.new(None, None)
+        self.vid_sw.set_vexpand(True)
+        self.vid_sw.set_hexpand(True)
 
         for c in ((i, vid_cols[i][0]) for i in range(len(vid_cols))):
             col = gtk.TreeViewColumn(c[1],
                                      gtk.CellRendererText(),
                                      text=c[0],
                                      size=12)
+            col.set_reorderable(True)
+            col.set_resizable(True)
             self.vid_view.append_column(col)
 
         # Assemble the widgets
