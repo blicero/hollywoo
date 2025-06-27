@@ -1,5 +1,5 @@
 # -*- mode: org; fill-column: 78; -*-
-# Time-stamp: <2025-06-26 00:41:34 krylon>
+# Time-stamp: <2025-06-27 21:10:08 krylon>
 #
 #+TAGS: internals(i) ui(u) bug(b) feature(f)
 #+TAGS: database(d) design(e), meditation(m)
@@ -16,17 +16,17 @@
   A naive video library
 ** Clocktable
    #+BEGIN: clocktable :scope file :maxlevel 255 :emphasize t
-   #+CAPTION: Clock summary at [2025-06-26 Do 00:41]
-   | Headline               | Time    |         |      |
-   |------------------------+---------+---------+------|
-   | *Total time*           | *15:45* |         |      |
-   |------------------------+---------+---------+------|
-   | *Hollywoo [1/2]*       | *15:45* |         |      |
-   | \_  /Components [1/2]/ |         | /15:45/ |      |
-   | \_    Model [0/0]      |         |         | 0:17 |
-   | \_    Database [0/1]   |         |         | 5:00 |
-   | \_    Scanner [1/1]    |         |         | 3:21 |
-   | \_    GUI [0/0]        |         |         | 7:07 |
+   #+CAPTION: Clock summary at [2025-06-27 Fr 21:10]
+   | Headline               | Time    |         |       |
+   |------------------------+---------+---------+-------|
+   | *Total time*           | *21:00* |         |       |
+   |------------------------+---------+---------+-------|
+   | *Hollywoo [1/2]*       | *21:00* |         |       |
+   | \_  /Components [1/2]/ |         | /21:00/ |       |
+   | \_    Model [0/0]      |         |         |  0:17 |
+   | \_    Database [0/1]   |         |         |  5:00 |
+   | \_    Scanner [1/1]    |         |         |  3:21 |
+   | \_    GUI [0/0]        |         |         | 12:22 |
    #+END:
 ** Journal
 ** Features [0/0]
@@ -97,6 +97,9 @@
     :VISIBILITY: children
     :END:
     :LOGBOOK:
+    CLOCK: [2025-06-27 Fr 20:40]--[2025-06-27 Fr 21:10] =>  0:30
+    CLOCK: [2025-06-27 Fr 17:59]--[2025-06-27 Fr 18:58] =>  0:59
+    CLOCK: [2025-06-26 Do 15:41]--[2025-06-26 Do 19:27] =>  3:46
     CLOCK: [2025-06-25 Mi 19:47]--[2025-06-26 Do 00:41] =>  4:54
     CLOCK: [2025-06-25 Mi 17:26]--[2025-06-25 Mi 19:39] =>  2:13
     :END:
