@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-24 19:42:20 krylon>
+# Time-stamp: <2025-06-27 19:24:23 krylon>
 #
 # /data/code/python/hollywoo/database.py
 # created on 21. 06. 2025
@@ -21,7 +21,7 @@ import sqlite3
 from datetime import datetime
 from enum import IntEnum, auto, unique
 from threading import Lock
-from typing import Final, Optional
+from typing import Final, Optional, Union
 
 import krylib
 
@@ -155,6 +155,7 @@ class qid(IntEnum):
     VideoSetMtime = auto()
     VideoGetByID = auto()
     VideoGetByPath = auto()
+    VideoGetByFolder = auto()
     VideoGetAll = auto()
     VideoSetResolution = auto()
     VideoSetDuration = auto()
@@ -246,6 +247,21 @@ SELECT
 FROM video
 WHERE path = ?
     """,
+    qid.VideoGetByFolder: """
+SELECT
+    id,
+    path,
+    added,
+    mtime,
+    title,
+    cksum,
+    xres,
+    yres,
+    duration
+FROM video
+WHERE folder_id = ?
+ORDER BY path
+    """,
     qid.VideoGetAll: """
 SELECT
     id,
@@ -259,6 +275,7 @@ SELECT
     yres,
     duration
 FROM video
+ORDER BY path
     """,
     qid.ProgramAdd: "INSERT INTO program (title) VALUES (?)",
     qid.ProgramSetTitle: "UPDATE program SET title = ? WHERE id = ?",
@@ -548,6 +565,44 @@ class Database:
             duration=row[8],
         )
         return v
+
+    def video_get_by_folder(self, f: Union[Folder, str, int]) -> list[Video]:
+        """Load all videos that belong to the given folder."""
+        fldr: Optional[Folder] = None
+        if isinstance(f, Folder):
+            fldr = f
+        elif isinstance(f, str):
+            fldr = self.folder_get_by_path(f)
+        elif isinstance(f, int):
+            fldr = self.folder_get_by_id(f)
+        assert fldr is not None
+        self.log.debug("Load videos for Folder %s (%d)...",
+                       f.path,
+                       f.fid)
+
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.VideoGetByFolder], (fldr.fid, ))
+        vids: list[Video] = []
+
+        for row in cur:
+            v: Video = Video(
+                vid=row[0],
+                folder_id=fldr.fid,
+                path=row[1],
+                added=datetime.fromtimestamp(row[2]),
+                mtime=datetime.fromtimestamp(row[3]),
+                title=row[4],
+                cksum=row[5],
+                resolution=Resolution(row[6], row[7]),
+                duration=row[8],
+            )
+            vids.append(v)
+
+        self.log.debug("Got %d videos for Folder %s",
+                       len(vids),
+                       f.path)
+
+        return vids
 
     def video_get_all(self) -> list[Video]:
         """Get all videos from the database."""
