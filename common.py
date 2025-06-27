@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-21 17:42:25 krylon>
+# Time-stamp: <2025-06-27 19:20:14 krylon>
 #
 # /data/code/python/hollywoo/common.py
 # created on 21. 06. 2025
@@ -19,8 +19,9 @@ hollywoo.common
 import logging
 import logging.handlers
 import os
-from typing import Final
+import sys
 from threading import Lock
+from typing import Final
 
 APP_NAME: Final[str] = "Hollywo"
 APP_VERSION: Final[str] = "0.0.1"
@@ -118,7 +119,7 @@ def get_logger(name: str, terminal: bool = True) -> logging.Logger:
         log_obj.addHandler(log_file_handler)
 
         if terminal:
-            log_console_handler = logging.StreamHandler()
+            log_console_handler = logging.StreamHandler(sys.stdout)
             log_console_handler.setFormatter(log_fmt)
             log_console_handler.setLevel(logging.DEBUG)
             log_obj.addHandler(log_console_handler)
