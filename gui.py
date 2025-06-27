@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-25 23:34:38 krylon>
+# Time-stamp: <2025-06-27 19:36:25 krylon>
 #
 # /data/code/python/hollywoo/gui.py
 # created on 24. 06. 2025
@@ -184,11 +184,21 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         self.win.connect("destroy", self._quit)
 
         self.fm_item_quit.connect("activate", self._quit)
+        self.fm_item_add.connect("activate", self.handle_add_folder)
+
+        glib.timeout_add(500, self.check_queue)
 
         # And show yourself, you cowardly window!
 
         self.win.show_all()
         self.win.visible = True
+
+        glib.timeout_add(50, self._load_data)
+
+    def _load_data(self) -> None:
+        folders = self.db.folder_get_all()
+        for f in folders:
+            glib.timeout_add(100, self.load_folder, f)
 
     def run(self):
         """Execute the Gtk event loop."""
@@ -197,6 +207,119 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
     def _quit(self, *_ignore):
         self.win.destroy()
         gtk.main_quit()
+
+    def check_queue(self) -> bool:
+        """Get any pending messages from the queue and handle them."""
+        status: bool = True
+        try:
+            while not self.mq.empty():
+                msg = self.mq.get_nowait()
+                self.log.debug("Got message of type %s from Queue", msg.tag)
+                glib.timeout_add(100, self.handle_msg, msg)
+        except Empty:
+            pass
+        except ShutDown:
+            status = False
+        return status
+
+    def handle_msg(self, msg: Message) -> bool:
+        """Process a message about an event we received from another thread."""
+        self.log.debug("Handle Message %s", msg.tag)
+        try:
+            match msg.tag:
+                case MsgType.NothingBurger:
+                    self.log.debug("NothingBurger? R U kidding me right now?!")
+                case MsgType.ScanComplete:
+                    assert isinstance(msg.payload, Folder)
+                    fldr: Folder = msg.payload
+                    self.log.debug("Scan of %s finished.", fldr.path)
+                    glib.timeout_add(50, self.load_folder, fldr)
+                case MsgType.ScanError:
+                    self.log.error("An error occured during a scan: %s",
+                                   msg.payload)
+        except Exception as err:  # pylint: disable-msg=W0718
+            self.log.error("%s while handling message of type %s: %s",
+                           err.__class__.__name__,
+                           msg.tag,
+                           err)
+
+        return False
+
+    def handle_add_folder(self, *_ignore) -> None:
+        """Prompt the user for a Folder and add it if needed."""
+        self.log.debug("Handle add folder")
+        try:
+            dlg = gtk.FileChooserDialog(
+                title="Pick a folder...",
+                parent=self.win,
+                action=gtk.FileChooserAction.SELECT_FOLDER)
+            dlg.add_buttons(
+                gtk.STOCK_CANCEL,
+                gtk.ResponseType.CANCEL,
+                gtk.STOCK_OPEN,
+                gtk.ResponseType.OK)
+
+            res = dlg.run()
+            if res != gtk.ResponseType.OK:
+                self.log.debug("Response from dialog was %s, I'm out.", res)
+                return
+
+            path = dlg.get_filename()
+            self.log.info("Add folder %s.", path)
+        finally:
+            dlg.destroy()
+
+        thr = Thread(target=self.scan_folder,
+                     args=(path, ),
+                     name=f"Scan {path}",
+                     daemon=True)
+        thr.start()
+
+    def scan_folder(self, path: str) -> None:
+        """scan_folder creates and runs the Scanner on a folder.
+
+        This method is intended to be called in a separate thread.
+        """
+        self.log.debug("About to scan folder %s", path)
+        try:
+            scn: Scanner = Scanner(path)
+            fldr = scn.scan()
+            self.log.debug("Finished scanning %s, informing the UI thread.", path)
+            msg = Message(MsgType.ScanComplete, fldr)
+            self.mq.put(msg)
+        finally:
+            self.log.debug("Scanner thread for folder %s is quitting.",
+                           path)
+
+    def load_folder(self, fldr: Folder) -> None:
+        """Load the videos that scanning the given folder yielded in the GUI."""
+        self.log.debug("Loading data from folder %s (%d)", fldr.path, fldr.fid)
+        with self.db:
+            vids = self.db.video_get_by_folder(fldr)
+
+        riter = self.root_store.append()
+        self.root_store.set(
+            riter,
+            (0, 1, 2, 3),
+            (fldr.fid,
+             fldr.path,
+             fldr.last_scan.strftime(common.TIME_FMT) if fldr.last_scan is not None else "",
+             fldr.remote))
+
+        for v in vids:
+            viter = self.vid_store.append()
+            # TODO Load data for tags and linked people
+            self.vid_store.set(
+                viter,
+                tuple(range(len(vid_cols))),
+                (v.vid,
+                 v.path,
+                 v.title,
+                 str(v.resolution),
+                 v.dur_str,
+                 "",
+                 ""),
+            )
 
 
 if __name__ == '__main__':

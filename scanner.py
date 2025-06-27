@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-24 20:10:34 krylon>
+# Time-stamp: <2025-06-26 17:17:29 krylon>
 #
 # /data/code/python/hollywoo/scanner.py
 # created on 23. 06. 2025
@@ -71,7 +71,7 @@ class Scanner:
 
         return False
 
-    def scan(self) -> None:
+    def scan(self) -> Folder:
         """Run the scanner on the given directory tree."""
         self.log.debug("Scan %s", self.path)
         with self.db:
@@ -121,6 +121,7 @@ class Scanner:
                         self.db.video_set_title(vid, meta["title"])
             self.db.folder_update_scan(root, datetime.now())
         self._cache.clear()
+        return root
 
     def _get_metadata(self, vid: str) -> defaultdict:
         m = MediaInfo.parse(vid)

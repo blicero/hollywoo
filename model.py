@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-24 22:44:28 krylon>
+# Time-stamp: <2025-06-27 18:50:50 krylon>
 #
 # /data/code/python/hollywoo/model.py
 # created on 21. 06. 2025
@@ -66,6 +66,18 @@ class Video:
         """Get the Video's size, in bytes."""
         st = os.stat(self.path)
         return st.st_size
+
+    @property
+    def dur_str(self) -> str:
+        """Return the duration as a human-readable string."""
+        hours: int = 0
+        minutes: int = 0
+        seconds: int = int(self.duration / 1000)
+
+        hours, seconds = divmod(seconds, 3600)
+        minutes, seconds = divmod(seconds, 60)
+
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
 
 @dataclass(slots=True, kw_only=True)
