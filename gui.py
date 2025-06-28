@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-27 19:36:25 krylon>
+# Time-stamp: <2025-06-28 16:45:07 krylon>
 #
 # /data/code/python/hollywoo/gui.py
 # created on 24. 06. 2025
@@ -25,7 +25,7 @@ import gi  # type: ignore
 
 from hollywoo import common
 from hollywoo.database import Database
-from hollywoo.model import Folder
+from hollywoo.model import Folder, Tag
 from hollywoo.scanner import Scanner
 
 gi.require_version("Gtk", "3.0")
@@ -33,14 +33,11 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GLib", "2.0")
 gi.require_version("Gio", "2.0")
 
-# from gi.repository import \
-#     Gdk as \
-#     gdk  # noqa: E402,F401 pylint: disable-msg=C0413,C0411,W0611 # type: ignore
-from gi.repository import \
-    GLib as \
+from gi.repository import Gdk as \
+    gdk  # noqa: E402,F401 pylint: disable-msg=C0413,C0411,W0611 # type: ignore
+from gi.repository import GLib as \
     glib  # noqa: E402,F401 pylint: disable-msg=C0413,C0411,W0611 # type: ignore
-from gi.repository import \
-    Gtk as \
+from gi.repository import Gtk as \
     gtk  # noqa: E402,F401 pylint: disable-msg=C0413,C0411,W0611 # type: ignore
 
 root_cols: Final[list[tuple[str, type]]] = [
@@ -60,10 +57,14 @@ vid_cols: Final[list[tuple[str, type]]] = [  # noqa: F841 pylint: disable-msg=W0
     ("People", str),
 ]
 
-# tag_cols: Final[list[tuple[str, type]]] = [  # noqa: F841 pylint: disable-msg=W0612
-#     ("ID", int),
-#     ("Name", str),
-# ]
+tag_cols: Final[list[tuple[str, type]]] = [  # noqa: F841 pylint: disable-msg=W0612
+    ("ID", int),
+    ("Name", str),
+    ("Video ID", int),
+    ("Video Title", str),
+    ("Video Res", str),
+    ("Video Dur", str),
+]
 
 
 class MsgType(Enum):
@@ -121,6 +122,11 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         self.menu_file.add(self.fm_item_scan)
         self.menu_file.add(self.fm_item_quit)
 
+        self.em_tag_create = gtk.MenuItem.new_with_mnemonic("Create _Tag")
+
+        self.mb_edit_item.set_submenu(self.menu_edit)
+        self.menu_edit.add(self.em_tag_create)
+
         # Create the TreeViews and models
 
         self.root_store = gtk.ListStore(*(c[1] for c in root_cols))
@@ -133,6 +139,7 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
             col = gtk.TreeViewColumn(c[1],
                                      gtk.CellRendererText(),
                                      text=c[0],
+                                     editable=False,
                                      size=12)
             col.set_reorderable(True)
             col.set_resizable(True)
@@ -148,10 +155,28 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
             col = gtk.TreeViewColumn(c[1],
                                      gtk.CellRendererText(),
                                      text=c[0],
+                                     editable=False,
                                      size=12)
             col.set_reorderable(True)
             col.set_resizable(True)
             self.vid_view.append_column(col)
+
+        self.tag_store = gtk.TreeStore(*(c[1] for c in tag_cols))
+        self.tag_view = gtk.TreeView.new_with_model(self.tag_store)
+        self.tag_sw = gtk.ScrolledWindow.new(None, None)
+        self.tag_sw.set_vexpand(True)
+        self.tag_sw.set_hexpand(True)
+
+        for c in ((i, tag_cols[i][0]) for i in range(len(tag_cols))):
+            col = gtk.TreeViewColumn(
+                c[1],
+                gtk.CellRendererText(),
+                text=c[0],
+                size=12,
+                editable=False,
+            )
+            col.set_resizable(True)
+            self.tag_view.append_column(col)
 
         # Assemble the widgets
 
@@ -168,16 +193,19 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
 
         self.root_sw.add(self.root_view)
         self.vid_sw.add(self.vid_view)
+        self.tag_sw.add(self.tag_view)
 
         self.notebook.append_page(
             self.root_sw,
-            gtk.Label.new("Folders"),
-        )
+            gtk.Label.new("Folders"))
 
         self.notebook.append_page(
             self.vid_sw,
-            gtk.Label.new("Videos"),
-        )
+            gtk.Label.new("Videos"))
+
+        self.notebook.append_page(
+            self.tag_sw,
+            gtk.Label.new("Tags"))
 
         # Register signal handlers
 
@@ -185,6 +213,8 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
 
         self.fm_item_quit.connect("activate", self._quit)
         self.fm_item_add.connect("activate", self.handle_add_folder)
+
+        self.em_tag_create.connect("activate", self.handle_create_tag)
 
         glib.timeout_add(500, self.check_queue)
 
@@ -194,11 +224,51 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         self.win.visible = True
 
         glib.timeout_add(50, self._load_data)
+        glib.timeout_add(60, self._load_tags)
+
+    def _display_msg(self, msg: str, modal: bool = True) -> None:
+        """Display a message in a dialog."""
+        self.log.info(msg)
+
+        dlg = gtk.Dialog(
+            parent=self.win,
+            title="Attention",
+            modal=modal,
+        )
+
+        dlg.add_buttons(
+            gtk.STOCK_OK,
+            gtk.ResponseType.OK,
+        )
+
+        area = dlg.get_content_area()
+        lbl = gtk.Label(label=msg)
+        area.add(lbl)
+        dlg.show_all()  # pylint: disable-msg=E1101
+
+        try:
+            dlg.run()  # pylint: disable-msg=E1101
+        finally:
+            dlg.destroy()
 
     def _load_data(self) -> None:
         folders = self.db.folder_get_all()
         for f in folders:
             glib.timeout_add(100, self.load_folder, f)
+
+    def _load_tags(self) -> None:
+        tags = self.db.tag_get_all()
+
+        for t in tags:
+            titer = self.tag_store.append(None)
+            self.tag_store.set(titer, (0, 1), (t.tid, t.name))
+            vids = self.db.tag_link_get_by_tag(t)
+
+            for v in vids:
+                viter = self.tag_store.append(titer)
+                self.tag_store.set(viter,
+                                   (2, 3, 4, 5),
+                                   (v.vid, v.dsp_title, v.resolution, v.dur_str))
 
     def run(self):
         """Execute the Gtk event loop."""
@@ -320,6 +390,69 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
                  "",
                  ""),
             )
+
+    def _handle_vid_view_click(self, _w, evt: gdk.Event) -> None:
+        if evt.button != 3:
+            return
+
+        x: Final[float] = evt.x
+        y: Final[float] = evt.y
+
+        path, _, _, _ = self.vid_view.get_path_at_pos(x, y)
+        cpath = self.vid_store.convert_path_to_child_path(path)
+        tree_iter: gtk.TreeIter = self.vid_store.get_iter(cpath)
+
+        v_id: Final[int] = self.vid_store[tree_iter][0]
+        vid = self.db.video_get_by_id(v_id)
+        assert vid is not None
+
+        self.log.debug("Clicked on Video %s",
+                       vid.dsp_title)
+
+        self._display_msg("Coming soon: Context Menus!")
+
+    # def _mk_ctx_menu_vid(self, viter: gtk.TreeIter, vid: Video) -> gtk.Menu:
+    #     menu = gtk.Menu()
+
+    def handle_create_tag(self) -> None:
+        """Facilitate the creation of a new Tag."""
+        self.log.debug("Tag me like you mean it!")
+
+        try:
+            dlg = gtk.Dialog(
+                title="Create Tag",
+                parent=self.win,
+                modal=True)
+            dlg.add_buttons(
+                gtk.STOCK_CANCEL,
+                gtk.ResponseType.CANCEL,
+                gtk.STOCK_OK,
+                gtk.ResponseType.OK)
+
+            grid = gtk.Grid.new()  # pylint: disable-msg=E1120
+            lbl = gtk.Label.new("Name: ")
+            edit = gtk.Entry.new()  # pylint: disable-msg=E1120
+
+            grid.attach(lbl, 0, 0, 1, 1)
+            grid.attach(edit, 1, 0, 1, 1)
+
+            dlg.get_content_area().add(grid)
+            dlg.show_all()  # pylint: disable-msg=E1101
+
+            res = dlg.run()
+            if res != gtk.ResponseType.OK:
+                return
+
+            name = edit.get_text()
+            t = Tag(name=name)
+            with self.db:
+                self.db.tag_add(t)
+
+            titer = self.tag_store.append(None)
+            self.tag_store.set(titer, (0, 1), (t.tid, t.name))
+        finally:
+            self.log.debug("Phewww, that was some tagging, wasn't it?")
+            dlg.destroy()
 
 
 if __name__ == '__main__':

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-27 18:50:50 krylon>
+# Time-stamp: <2025-06-28 15:10:48 krylon>
 #
 # /data/code/python/hollywoo/model.py
 # created on 21. 06. 2025
@@ -60,6 +60,7 @@ class Video:
     cksum: Optional[str] = None
     resolution: Resolution
     duration: int  # duration in milliseconds
+    hidden: bool = False
 
     @property
     def size(self) -> int:
@@ -78,6 +79,14 @@ class Video:
         minutes, seconds = divmod(seconds, 60)
 
         return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+    @property
+    def dsp_title(self) -> str:
+        """Short title for the video."""
+        if self.title is not None:
+            return self.title
+
+        return os.path.basename(self.path)
 
 
 @dataclass(slots=True, kw_only=True)
