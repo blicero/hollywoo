@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-27 19:24:23 krylon>
+# Time-stamp: <2025-06-28 16:20:02 krylon>
 #
 # /data/code/python/hollywoo/database.py
 # created on 21. 06. 2025
@@ -26,7 +26,7 @@ from typing import Final, Optional, Union
 import krylib
 
 from hollywoo import common
-from hollywoo.model import Folder, Resolution, Video
+from hollywoo.model import Folder, Resolution, Tag, Video
 
 
 class DBError(common.HollywooError):
@@ -62,6 +62,7 @@ CREATE TABLE video (
     xres INTEGER,
     yres INTEGER,
     duration INTEGER,
+    hidden INTEGER NOT NULL DEFAULT 0,
     UNIQUE (folder_id, path),
     CHECK ((xres IS NULL) = (yres IS NULL)),
     CHECK (duration IS NULL OR duration > 0),
@@ -74,6 +75,7 @@ CREATE TABLE video (
     "CREATE INDEX vid_path_idx ON video (path)",
     "CREATE INDEX vid_res_idx ON video (xres, yres)",
     "CREATE INDEX vid_dur_idx ON video (duration)",
+    "CREATE INDEX vid_hidden_idx ON video (hidden <> 0)",
     """
 CREATE TABLE program (
     id INTEGER PRIMARY KEY,
@@ -114,6 +116,8 @@ CREATE TABLE tag_vid_link (
       ON DELETE CASCADE
 ) STRICT
     """,
+    "CREATE INDEX tag_link_tag_idx ON tag_vid_link (tag_id)",
+    "CREATE INDEX tag_link_vid_idx ON tag_vid_link (vid_id)",
     """
 CREATE TABLE person (
     id INTEGER PRIMARY KEY,
@@ -159,6 +163,7 @@ class qid(IntEnum):
     VideoGetAll = auto()
     VideoSetResolution = auto()
     VideoSetDuration = auto()
+    VideoSetHidden = auto()
     ProgramAdd = auto()
     ProgramSetTitle = auto()
     ProgramAddVideo = auto()
@@ -168,6 +173,8 @@ class qid(IntEnum):
     TagLinkCreate = auto()
     TagLinkGetByTag = auto()
     TagLinkGetByVid = auto()
+    TagLinkRemove = auto()
+    TagGetAll = auto()
     PersonAdd = auto()
     PersonUpdateName = auto()
     PersonUpdateBorn = auto()
@@ -219,6 +226,7 @@ INSERT INTO video (folder_id, path, added, mtime, xres, yres, duration)
     qid.VideoSetMtime: "UPDATE video SET mtime = ? WHERE id = ?",
     qid.VideoSetResolution: "UPDATE video SET xres = ?, yres = ? WHERE id = ?",
     qid.VideoSetDuration: "UPDATE video SET duration = ? WHERE id = ?",
+    qid.VideoSetHidden: "UPDATE video SET hidden = ? WHERE id = ?",
     qid.VideoGetByID: """
 SELECT
     folder_id,
@@ -229,7 +237,8 @@ SELECT
     cksum,
     xres,
     yres,
-    duration
+    duration,
+    hidden
 FROM video
 WHERE id = ?
     """,
@@ -243,7 +252,8 @@ SELECT
     cksum,
     xres,
     yres,
-    duration
+    duration,
+    hidden
 FROM video
 WHERE path = ?
     """,
@@ -257,7 +267,8 @@ SELECT
     cksum,
     xres,
     yres,
-    duration
+    duration,
+    hidden
 FROM video
 WHERE folder_id = ?
 ORDER BY path
@@ -273,7 +284,8 @@ SELECT
     cksum,
     xres,
     yres,
-    duration
+    duration,
+    hidden
 FROM video
 ORDER BY path
     """,
@@ -300,15 +312,20 @@ WHERE p.prog_id = ?
     """,
     qid.TagCreate: "INSERT INTO tag (name) VALUES (?)",
     qid.TagLinkCreate: "INSERT INTO tag_vid_link (tag_id, vid_id) VALUES (?, ?)",
+    qid.TagLinkRemove: "DELETE FROM tag_vid_link WHERE tag_id = ? AND vid_id = ?",
     qid.TagLinkGetByTag: """
 SELECT
     v.id,
     v.folder_id,
     v.path,
     v.added,
+    v.mtime,
     v.title,
     v.cksum,
-    f.path
+    v.xres,
+    v.yres,
+    v.duration,
+    v.hidden
 FROM tag_vid_link t
 INNER JOIN video v ON t.vid_id = v.id
 INNER JOIN folder f ON v.folder_id = f.id
@@ -322,6 +339,7 @@ SELECT
 FROM tag t
 WHERE t.vid_id = ?
     """,
+    qid.TagGetAll: """SELECT id, name FROM tag ORDER BY name""",
     qid.PersonAdd: "INSERT INTO person (name) VALUES (?)",
     qid.PersonUpdateName: "UPDATE person SET name = ? WHERE id = ?",
     qid.PersonUpdateBorn: "UPDATE person SET born = ? WHERE id = ?",
@@ -524,6 +542,12 @@ class Database:
         cur.execute(qdb[qid.VideoSetMtime], (int(mtime.timestamp()), v.vid))
         v.mtime = mtime
 
+    def video_set_hidden(self, v: Video, hidden: bool = True) -> None:
+        """Set or clear a Video's hidden flag."""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.VideoSetHidden], (hidden, v.vid))
+        v.hidden = hidden
+
     def video_get_by_id(self, vid: int) -> Optional[Video]:
         """Look up a Video by its ID."""
         cur = self.db.cursor()
@@ -542,6 +566,7 @@ class Database:
             cksum=row[5],
             resolution=Resolution(row[6], row[7]),
             duration=row[8],
+            hidden=row[9],
         )
 
         return v
@@ -563,6 +588,7 @@ class Database:
             cksum=row[5],
             resolution=Resolution(row[6], row[7]),
             duration=row[8],
+            hidden=row[9],
         )
         return v
 
@@ -577,8 +603,8 @@ class Database:
             fldr = self.folder_get_by_id(f)
         assert fldr is not None
         self.log.debug("Load videos for Folder %s (%d)...",
-                       f.path,
-                       f.fid)
+                       fldr.path,
+                       fldr.fid)
 
         cur = self.db.cursor()
         cur.execute(qdb[qid.VideoGetByFolder], (fldr.fid, ))
@@ -595,12 +621,13 @@ class Database:
                 cksum=row[5],
                 resolution=Resolution(row[6], row[7]),
                 duration=row[8],
+                hidden=row[9],
             )
             vids.append(v)
 
         self.log.debug("Got %d videos for Folder %s",
                        len(vids),
-                       f.path)
+                       fldr.path)
 
         return vids
 
@@ -622,12 +649,86 @@ class Database:
                 cksum=row[6],
                 resolution=Resolution(row[7], row[8]),
                 duration=row[9],
+                hidden=row[0],
             )
 
             vids.append(v)
 
         return vids
 
+    def tag_add(self, t: Tag) -> None:
+        """Add a Tag to the database."""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.TagCreate], (t.name, ))
+        tid = cur.lastrowid
+        assert tid is not None
+        self.log.debug("Create new Tag %s, ID is %d", t.name, tid)
+        t.tid = tid
+
+    def tag_link_create(self, t: Tag, v: Video) -> None:
+        """Attach a Tag to a Video."""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.TagLinkCreate],
+                    (t.tid, v.vid))
+        self.log.debug("Attach Tag %s to Video %s",
+                       t.name,
+                       v.dsp_title)
+
+    def tag_link_get_by_tag(self, t: Tag) -> list[Video]:
+        """Get all Videos that have the given Tag attached."""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.TagLinkGetByTag], (t.tid, ))
+        vids: list[Video] = []
+
+        for row in cur:
+            v = Video(
+                vid=row[0],
+                folder_id=row[1],
+                path=row[2],
+                added=datetime.fromtimestamp(row[3]),
+                mtime=datetime.fromtimestamp(row[4]),
+                title=row[5],
+                cksum=row[6],
+                resolution=Resolution(row[7], row[8]),
+                duration=row[9],
+                hidden=row[10],
+            )
+            vids.append(v)
+
+        return vids
+
+    def tag_link_get_by_vid(self, v: Video) -> list[Tag]:
+        """Get all Tags attached to a Video."""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.TagLinkGetByVid], (v.vid, ))
+        tags: list[Tag] = []
+
+        for row in cur:
+            t = Tag(tid=row[0], name=row[1])
+            tags.append(t)
+
+        return tags
+
+    def tag_get_all(self) -> list[Tag]:
+        """Load all Tags."""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.TagGetAll])
+        tags: list[Tag] = []
+
+        for row in cur:
+            t = Tag(tid=row[0], name=row[1])
+            tags.append(t)
+
+        return tags
+
+    def tag_link_remove(self, t: Tag, v: Video) -> None:
+        """Detach a Tag from a Video."""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.TagLinkRemove], (t.tid, v.vid))
+        if cur.rowcount == 0:
+            self.log.error("Looks like Tag %s wasn't attaced to Video %s after all",
+                           t.name,
+                           v.dsp_title)
 
 # Local Variables: #
 # python-indent: 4 #
