@@ -1,4 +1,4 @@
-# Time-stamp: <2025-06-25 18:54:43 krylon>
+# Time-stamp: <2025-06-28 16:20:51 krylon>
 #
 # Analyse import fallback blocks. This can be used to support both Python 2 and 3
 # compatible code, which means that the block might have code that exists only in
@@ -268,7 +268,7 @@ max-locals = 15
 max-parents = 7
 
 # Maximum number of public methods for a class (see R0904).
-max-public-methods = 20
+max-public-methods = 50
 
 # Maximum number of return / yield for function / method body.
 max-returns = 10
