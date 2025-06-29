@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-28 16:20:02 krylon>
+# Time-stamp: <2025-06-29 18:33:41 krylon>
 #
 # /data/code/python/hollywoo/database.py
 # created on 21. 06. 2025
@@ -174,6 +174,7 @@ class qid(IntEnum):
     TagLinkGetByTag = auto()
     TagLinkGetByVid = auto()
     TagLinkRemove = auto()
+    TagGetAllVideo = auto()
     TagGetAll = auto()
     PersonAdd = auto()
     PersonUpdateName = auto()
@@ -338,6 +339,15 @@ SELECT
     t.name
 FROM tag t
 WHERE t.vid_id = ?
+    """,
+    qid.TagGetAllVideo: """
+SELECT
+    t.id,
+    t.name,
+    l.id
+FROM tag t
+LEFT OUTER JOIN tag_vid_link l ON t.id = l.tag_id AND l.vid_id = ?
+ORDER BY t.name
     """,
     qid.TagGetAll: """SELECT id, name FROM tag ORDER BY name""",
     qid.PersonAdd: "INSERT INTO person (name) VALUES (?)",
@@ -706,6 +716,26 @@ class Database:
         for row in cur:
             t = Tag(tid=row[0], name=row[1])
             tags.append(t)
+
+        return tags
+
+    # ┌────┬─────────┬────┐
+    # │ id │  name   │ id │
+    # ├────┼─────────┼────┤
+    # │ 3  │ Action  │    │
+    # │ 1  │ Doku    │ 2  │
+    # │ 4  │ History │    │
+    # │ 2  │ SF      │    │
+    # └────┴─────────┴────┘
+    def tag_get_all_vid(self, v: Video) -> list[tuple[Tag, Optional[int]]]:
+        """SELECT a list of all Tags, with the Link ID for that Video, if it is linked."""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.TagGetAllVideo], (v.vid, ))
+        tags: list[Tag, Optional[int]] = []
+
+        for row in cur:
+            t = Tag(tid=row[0], name=row[1])
+            tags.append((t, row[2]))
 
         return tags
 
