@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-28 16:45:07 krylon>
+# Time-stamp: <2025-06-29 18:44:29 krylon>
 #
 # /data/code/python/hollywoo/gui.py
 # created on 24. 06. 2025
@@ -410,6 +410,21 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
                        vid.dsp_title)
 
         self._display_msg("Coming soon: Context Menus!")
+
+        tags = self.db.tag_get_all()
+
+        cmenu = gtk.Menu()
+        tmenu = gtk.Menu()
+
+        titem = gtk.MenuItem.new_with_mnemonic("_Tags")
+
+        for t in tags:
+            litem = gtk.CheckMenuItem.new_with_label(t[0].name)
+            litem.set_active(t[1] is not None)
+            tmenu.add(litem)
+
+        cmenu.add(titem)
+        titem.set_submenu(tmenu)
 
     # def _mk_ctx_menu_vid(self, viter: gtk.TreeIter, vid: Video) -> gtk.Menu:
     #     menu = gtk.Menu()
