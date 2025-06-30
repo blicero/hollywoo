@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-30 18:42:15 krylon>
+# Time-stamp: <2025-06-30 20:59:32 krylon>
 #
 # /data/code/python/hollywoo/gui.py
 # created on 24. 06. 2025
@@ -475,6 +475,7 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
                        vid: Video,
                        tag: tuple[Tag, Optional[int]]) -> None:
         """Toggle the link between a Video and a Tag."""
+        op: Final[str] = "create" if tag[1] is None else "remove"
         with self.db:
             if tag[1] is None:
                 self.db.tag_link_create(tag[0], vid)
@@ -485,6 +486,27 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         tstr: str = ", ".join([x.name for x in tags])
         self.vid_store[viter][5] = tstr
 
+        # Update Tag View
+
+        titer: gtk.TreeIter = self.tag_store.get_iter_first()
+        while self.tag_store[titer][0] != tag[0].tid:
+            titer = self.tag_store.iter_next(titer)
+
+        # Now we have the Iter for the Tag.
+        if op == "create":
+            niter = self.tag_store.append(titer)
+            self.tag_store.set(niter,
+                               (2, 3, 4, 5),
+                               (vid.vid,
+                                vid.dsp_title,
+                                str(vid.resolution),
+                                vid.dur_str))
+        else:
+            diter: gtk.TreeIter = self.tag_store.iter_children(titer)
+            while self.tag_store[diter][2] != vid.vid:
+                diter = self.tag_store.iter_next(diter)
+            self.tag_store.remove(diter)
+
     def vid_hide_cb(self, _widget, vid: Video, viter: gtk.TreeIter) -> None:
         """Hide a Video."""
         with self.db:
@@ -493,7 +515,7 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
             self.vid_filter.refilter()
         # TODO Actually hide Video from TreeView!
 
-    def handle_create_tag(self) -> None:
+    def handle_create_tag(self, _ignore) -> None:
         """Facilitate the creation of a new Tag."""
         self.log.debug("Tag me like you mean it!")
 
