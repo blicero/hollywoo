@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-30 18:15:06 krylon>
+# Time-stamp: <2025-06-30 18:42:15 krylon>
 #
 # /data/code/python/hollywoo/gui.py
 # created on 24. 06. 2025
@@ -25,6 +25,7 @@ import gi  # type: ignore
 import krylib
 
 from hollywoo import common
+from hollywoo.config import Config
 from hollywoo.database import Database
 from hollywoo.model import Folder, Tag, Video
 from hollywoo.scanner import Scanner
@@ -34,11 +35,14 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GLib", "2.0")
 gi.require_version("Gio", "2.0")
 
-from gi.repository import Gdk as \
+from gi.repository import \
+    Gdk as \
     gdk  # noqa: E402,F401 # pylint: disable-msg=C0413,C0411,W0611 # type: ignore
-from gi.repository import GLib as \
+from gi.repository import \
+    GLib as \
     glib  # noqa: E402,F401 # pylint: disable-msg=C0413,C0411,W0611 # type: ignore
-from gi.repository import Gtk as \
+from gi.repository import \
+    Gtk as \
     gtk  # noqa: E402,F401 # pylint: disable-msg=C0413,C0411,W0611 # type: ignore
 
 root_cols: Final[list[tuple[str, type]]] = [
@@ -93,6 +97,9 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         self.mq: Queue[Message] = Queue()
         self.display_hidden: bool = False
         self.vids: dict[int, Video] = {}
+
+        cfg: Config = Config()
+        self.display_hidden = cfg.get("GUI", "DisplayHidden")
 
         # Create the widgets.
 
@@ -418,7 +425,6 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         if pinfo is None:
             return
         path = pinfo[0]
-        #path, _, _, _ = self.vid_view.get_path_at_pos(x, y)
         cpath = self.vid_filter.convert_path_to_child_path(path)
         tree_iter: gtk.TreeIter = self.vid_store.get_iter(cpath)
 
@@ -456,7 +462,8 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         cmenu.add(gtk.MenuItem.new_with_label(vid.dsp_title))
         cmenu.add(titem)
         titem.set_submenu(tmenu)
-        hide_item = gtk.MenuItem.new_with_mnemonic("_Hide?")
+        hide_item = gtk.CheckMenuItem.new_with_mnemonic("_Hide?")
+        hide_item.set_active(vid.hidden)
         hide_item.connect("activate", self.vid_hide_cb, vid, viter)
         cmenu.add(hide_item)
 
@@ -532,8 +539,6 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
 
         try:
             v_id = model[viter][0]
-            self.log.debug("Filter Video #%d", v_id)
-
             if v_id not in self.vids:
                 return True  # ???
 
@@ -549,6 +554,8 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
     def _toggle_show_hidden_cb(self, _widget) -> None:
         self.display_hidden = not self.display_hidden
         self.vid_filter.refilter()
+        cfg: Config = Config()
+        cfg.update("GUI", "DisplayHidden", self.display_hidden)
 
 
 if __name__ == '__main__':
