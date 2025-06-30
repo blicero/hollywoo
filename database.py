@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-30 16:06:08 krylon>
+# Time-stamp: <2025-06-30 18:12:17 krylon>
 #
 # /data/code/python/hollywoo/database.py
 # created on 21. 06. 2025
@@ -661,7 +661,7 @@ class Database:
                 cksum=row[6],
                 resolution=Resolution(row[7], row[8]),
                 duration=row[9],
-                hidden=row[0],
+                hidden=row[10],
             )
 
             vids.append(v)
