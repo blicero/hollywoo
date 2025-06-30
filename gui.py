@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-30 09:32:51 krylon>
+# Time-stamp: <2025-06-30 16:03:14 krylon>
 #
 # /data/code/python/hollywoo/gui.py
 # created on 24. 06. 2025
@@ -19,7 +19,7 @@ hollywoo.gui
 from enum import Enum, auto
 from queue import Empty, Queue, ShutDown
 from threading import Lock, Thread
-from typing import Any, Final, NamedTuple
+from typing import Any, Final, NamedTuple, Optional
 
 import gi  # type: ignore
 
@@ -418,7 +418,7 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         menu.show_all()
         menu.popup_at_pointer(evt)
 
-    def _mk_ctx_menu_vid(self, _viter: gtk.TreeIter, vid: Video) -> gtk.Menu:
+    def _mk_ctx_menu_vid(self, viter: gtk.TreeIter, vid: Video) -> gtk.Menu:
         tags = self.db.tag_get_all_vid(vid)
 
         cmenu = gtk.Menu()
@@ -429,6 +429,11 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         for t in tags:
             litem = gtk.CheckMenuItem.new_with_label(t[0].name)
             litem.set_active(t[1] is not None)
+            litem.connect("activate",
+                          self.vid_toggle_tag,
+                          viter,
+                          vid,
+                          t)
             tmenu.add(litem)
 
         cmenu.add(gtk.MenuItem.new_with_label(vid.dsp_title))
@@ -436,6 +441,22 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         titem.set_submenu(tmenu)
 
         return cmenu
+
+    def vid_toggle_tag(self,
+                       _widget,
+                       viter: gtk.TreeIter,
+                       vid: Video,
+                       tag: tuple[Tag, Optional[int]]) -> None:
+        """Toggle the link between a Video and a Tag."""
+        with self.db:
+            if tag[1] is None:
+                self.db.tag_link_create(tag[0], vid)
+            else:
+                self.db.tag_link_remove(tag[0], vid)
+
+            tags = self.db.tag_link_get_by_vid(vid)
+        tstr: str = ", ".join([x.name for x in tags])
+        self.vid_store[viter][5] = tstr
 
     def handle_create_tag(self) -> None:
         """Facilitate the creation of a new Tag."""
