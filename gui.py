@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-30 16:35:06 krylon>
+# Time-stamp: <2025-06-30 18:15:06 krylon>
 #
 # /data/code/python/hollywoo/gui.py
 # created on 24. 06. 2025
@@ -22,6 +22,7 @@ from threading import Lock, Thread
 from typing import Any, Final, NamedTuple, Optional
 
 import gi  # type: ignore
+import krylib
 
 from hollywoo import common
 from hollywoo.database import Database
@@ -91,6 +92,7 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         self.db = Database()
         self.mq: Queue[Message] = Queue()
         self.display_hidden: bool = False
+        self.vids: dict[int, Video] = {}
 
         # Create the widgets.
 
@@ -123,10 +125,13 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         self.menu_file.add(self.fm_item_scan)
         self.menu_file.add(self.fm_item_quit)
 
+        self.em_show_hidden = gtk.CheckMenuItem.new_with_mnemonic("Display _Hidden?")
+        self.em_show_hidden.set_active = self.display_hidden
         self.em_tag_create = gtk.MenuItem.new_with_mnemonic("Create _Tag")
 
         self.mb_edit_item.set_submenu(self.menu_edit)
         self.menu_edit.add(self.em_tag_create)
+        self.menu_edit.add(self.em_show_hidden)
 
         # Create the TreeViews and models
 
@@ -147,7 +152,9 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
             self.root_view.append_column(col)
 
         self.vid_store = gtk.ListStore(*(c[1] for c in vid_cols))
-        self.vid_view = gtk.TreeView(model=self.vid_store)
+        self.vid_filter = self.vid_store.filter_new()
+        self.vid_filter.set_visible_func(self._vid_visible_fn)
+        self.vid_view = gtk.TreeView(model=self.vid_filter)
         self.vid_sw = gtk.ScrolledWindow.new(None, None)
         self.vid_sw.set_vexpand(True)
         self.vid_sw.set_hexpand(True)
@@ -216,6 +223,7 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         self.fm_item_add.connect("activate", self.handle_add_folder)
 
         self.em_tag_create.connect("activate", self.handle_create_tag)
+        self.em_show_hidden.connect("activate", self._toggle_show_hidden_cb)
 
         self.vid_view.connect("button-press-event",
                               self._handle_vid_view_click)
@@ -259,6 +267,10 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         folders = self.db.folder_get_all()
         for f in folders:
             glib.timeout_add(100, self.load_folder, f)
+
+        vids = self.db.video_get_all()
+        for v in vids:
+            self.vids[v.vid] = v
 
     def _load_tags(self) -> None:
         tags = self.db.tag_get_all()
@@ -402,9 +414,13 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         x: Final[float] = evt.x
         y: Final[float] = evt.y
 
-        path, _, _, _ = self.vid_view.get_path_at_pos(x, y)
-        # cpath = self.vid_store.convert_path_to_child_path(path)
-        tree_iter: gtk.TreeIter = self.vid_store.get_iter(path)
+        pinfo = self.vid_view.get_path_at_pos(x, y)
+        if pinfo is None:
+            return
+        path = pinfo[0]
+        #path, _, _, _ = self.vid_view.get_path_at_pos(x, y)
+        cpath = self.vid_filter.convert_path_to_child_path(path)
+        tree_iter: gtk.TreeIter = self.vid_store.get_iter(cpath)
 
         v_id: Final[int] = self.vid_store[tree_iter][0]
         vid = self.db.video_get_by_id(v_id)
@@ -441,7 +457,7 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         cmenu.add(titem)
         titem.set_submenu(tmenu)
         hide_item = gtk.MenuItem.new_with_mnemonic("_Hide?")
-        hide_item.connect("activate", self.vid_hide_db, vid, viter)
+        hide_item.connect("activate", self.vid_hide_cb, vid, viter)
         cmenu.add(hide_item)
 
         return cmenu
@@ -466,6 +482,8 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         """Hide a Video."""
         with self.db:
             self.db.video_set_hidden(vid, True)
+            self.vids[vid.vid].hidden = True
+            self.vid_filter.refilter()
         # TODO Actually hide Video from TreeView!
 
     def handle_create_tag(self) -> None:
@@ -507,6 +525,30 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         finally:
             self.log.debug("Phewww, that was some tagging, wasn't it?")
             dlg.destroy()
+
+    def _vid_visible_fn(self, model, viter: gtk.TreeIter, _ignore) -> bool:
+        if self.display_hidden:
+            return True
+
+        try:
+            v_id = model[viter][0]
+            self.log.debug("Filter Video #%d", v_id)
+
+            if v_id not in self.vids:
+                return True  # ???
+
+            vid = self.vids[v_id]
+            return not vid.hidden
+        except TypeError as err:
+            self.log.error("%s in _vid_visible_fn: %s\n%s\n\n",
+                           err.__class__.__name__,
+                           err,
+                           krylib.fmt_err(err))
+            return True
+
+    def _toggle_show_hidden_cb(self, _widget) -> None:
+        self.display_hidden = not self.display_hidden
+        self.vid_filter.refilter()
 
 
 if __name__ == '__main__':
