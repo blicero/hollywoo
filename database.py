@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-29 18:33:41 krylon>
+# Time-stamp: <2025-06-30 09:31:29 krylon>
 #
 # /data/code/python/hollywoo/database.py
 # created on 21. 06. 2025
@@ -731,7 +731,7 @@ class Database:
         """SELECT a list of all Tags, with the Link ID for that Video, if it is linked."""
         cur = self.db.cursor()
         cur.execute(qdb[qid.TagGetAllVideo], (v.vid, ))
-        tags: list[Tag, Optional[int]] = []
+        tags: list[tuple[Tag, Optional[int]]] = []
 
         for row in cur:
             t = Tag(tid=row[0], name=row[1])
