@@ -1,4 +1,4 @@
-# Time-stamp: <2025-06-28 16:20:51 krylon>
+# Time-stamp: <2025-06-30 18:50:02 krylon>
 #
 # Analyse import fallback blocks. This can be used to support both Python 2 and 3
 # compatible code, which means that the block might have code that exists only in
@@ -382,6 +382,8 @@ disable = [
         "W0511",
         "C0302",
         "C0103",
+        "C0411",
+        "C0413",
         "R0801"]
 
 # Enable the message, report, category or checker with the given id(s). You can
