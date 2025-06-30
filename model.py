@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-28 15:10:48 krylon>
+# Time-stamp: <2025-06-30 09:30:07 krylon>
 #
 # /data/code/python/hollywoo/model.py
 # created on 21. 06. 2025
@@ -83,7 +83,7 @@ class Video:
     @property
     def dsp_title(self) -> str:
         """Short title for the video."""
-        if self.title is not None:
+        if self.title is not None and self.title != "":
             return self.title
 
         return os.path.basename(self.path)

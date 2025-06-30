@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-29 18:44:29 krylon>
+# Time-stamp: <2025-06-30 09:32:51 krylon>
 #
 # /data/code/python/hollywoo/gui.py
 # created on 24. 06. 2025
@@ -25,7 +25,7 @@ import gi  # type: ignore
 
 from hollywoo import common
 from hollywoo.database import Database
-from hollywoo.model import Folder, Tag
+from hollywoo.model import Folder, Tag, Video
 from hollywoo.scanner import Scanner
 
 gi.require_version("Gtk", "3.0")
@@ -34,11 +34,11 @@ gi.require_version("GLib", "2.0")
 gi.require_version("Gio", "2.0")
 
 from gi.repository import Gdk as \
-    gdk  # noqa: E402,F401 pylint: disable-msg=C0413,C0411,W0611 # type: ignore
+    gdk  # noqa: E402,F401 # pylint: disable-msg=C0413,C0411,W0611 # type: ignore
 from gi.repository import GLib as \
-    glib  # noqa: E402,F401 pylint: disable-msg=C0413,C0411,W0611 # type: ignore
+    glib  # noqa: E402,F401 # pylint: disable-msg=C0413,C0411,W0611 # type: ignore
 from gi.repository import Gtk as \
-    gtk  # noqa: E402,F401 pylint: disable-msg=C0413,C0411,W0611 # type: ignore
+    gtk  # noqa: E402,F401 # pylint: disable-msg=C0413,C0411,W0611 # type: ignore
 
 root_cols: Final[list[tuple[str, type]]] = [
     ("ID", int),
@@ -216,6 +216,9 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
 
         self.em_tag_create.connect("activate", self.handle_create_tag)
 
+        self.vid_view.connect("button-press-event",
+                              self._handle_vid_view_click)
+
         glib.timeout_add(500, self.check_queue)
 
         # And show yourself, you cowardly window!
@@ -268,7 +271,7 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
                 viter = self.tag_store.append(titer)
                 self.tag_store.set(viter,
                                    (2, 3, 4, 5),
-                                   (v.vid, v.dsp_title, v.resolution, v.dur_str))
+                                   (v.vid, v.dsp_title, str(v.resolution), v.dur_str))
 
     def run(self):
         """Execute the Gtk event loop."""
@@ -399,8 +402,8 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         y: Final[float] = evt.y
 
         path, _, _, _ = self.vid_view.get_path_at_pos(x, y)
-        cpath = self.vid_store.convert_path_to_child_path(path)
-        tree_iter: gtk.TreeIter = self.vid_store.get_iter(cpath)
+        # cpath = self.vid_store.convert_path_to_child_path(path)
+        tree_iter: gtk.TreeIter = self.vid_store.get_iter(path)
 
         v_id: Final[int] = self.vid_store[tree_iter][0]
         vid = self.db.video_get_by_id(v_id)
@@ -409,9 +412,14 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         self.log.debug("Clicked on Video %s",
                        vid.dsp_title)
 
-        self._display_msg("Coming soon: Context Menus!")
+        # self._display_msg("Coming soon: Context Menus!")
 
-        tags = self.db.tag_get_all()
+        menu = self._mk_ctx_menu_vid(tree_iter, vid)
+        menu.show_all()
+        menu.popup_at_pointer(evt)
+
+    def _mk_ctx_menu_vid(self, _viter: gtk.TreeIter, vid: Video) -> gtk.Menu:
+        tags = self.db.tag_get_all_vid(vid)
 
         cmenu = gtk.Menu()
         tmenu = gtk.Menu()
@@ -423,11 +431,11 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
             litem.set_active(t[1] is not None)
             tmenu.add(litem)
 
+        cmenu.add(gtk.MenuItem.new_with_label(vid.dsp_title))
         cmenu.add(titem)
         titem.set_submenu(tmenu)
 
-    # def _mk_ctx_menu_vid(self, viter: gtk.TreeIter, vid: Video) -> gtk.Menu:
-    #     menu = gtk.Menu()
+        return cmenu
 
     def handle_create_tag(self) -> None:
         """Facilitate the creation of a new Tag."""
