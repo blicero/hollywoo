@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-30 09:31:29 krylon>
+# Time-stamp: <2025-06-30 16:06:08 krylon>
 #
 # /data/code/python/hollywoo/database.py
 # created on 21. 06. 2025
@@ -337,8 +337,10 @@ ORDER BY f.path, v.path
 SELECT
     t.id,
     t.name
-FROM tag t
-WHERE t.vid_id = ?
+FROM tag_vid_link l
+INNER JOIN tag t ON l.tag_id = t.id
+WHERE l.vid_id = ?
+ORDER BY t.name
     """,
     qid.TagGetAllVideo: """
 SELECT
