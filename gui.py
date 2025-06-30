@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-30 16:03:14 krylon>
+# Time-stamp: <2025-06-30 16:35:06 krylon>
 #
 # /data/code/python/hollywoo/gui.py
 # created on 24. 06. 2025
@@ -90,6 +90,7 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         self.lock = Lock()
         self.db = Database()
         self.mq: Queue[Message] = Queue()
+        self.display_hidden: bool = False
 
         # Create the widgets.
 
@@ -439,6 +440,9 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         cmenu.add(gtk.MenuItem.new_with_label(vid.dsp_title))
         cmenu.add(titem)
         titem.set_submenu(tmenu)
+        hide_item = gtk.MenuItem.new_with_mnemonic("_Hide?")
+        hide_item.connect("activate", self.vid_hide_db, vid, viter)
+        cmenu.add(hide_item)
 
         return cmenu
 
@@ -457,6 +461,12 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
             tags = self.db.tag_link_get_by_vid(vid)
         tstr: str = ", ".join([x.name for x in tags])
         self.vid_store[viter][5] = tstr
+
+    def vid_hide_cb(self, _widget, vid: Video, viter: gtk.TreeIter) -> None:
+        """Hide a Video."""
+        with self.db:
+            self.db.video_set_hidden(vid, True)
+        # TODO Actually hide Video from TreeView!
 
     def handle_create_tag(self) -> None:
         """Facilitate the creation of a new Tag."""
