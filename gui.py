@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-07-01 13:42:03 krylon>
+# Time-stamp: <2025-07-01 14:15:57 krylon>
 #
 # /data/code/python/hollywoo/gui.py
 # created on 24. 06. 2025
@@ -17,6 +17,7 @@ hollywoo.gui
 """
 
 import os
+import subprocess
 from enum import Enum, auto
 from queue import Empty, Queue, ShutDown
 from threading import Lock, Thread
@@ -79,6 +80,7 @@ class MsgType(Enum):
     NothingBurger = auto()
     ScanComplete = auto()
     ScanError = auto()
+    PlayFinished = auto()
 
 
 class Message(NamedTuple):
@@ -349,7 +351,6 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         try:
             while not self.mq.empty():
                 msg = self.mq.get_nowait()
-                self.log.debug("Got message of type %s from Queue", msg.tag)
                 glib.timeout_add(100, self.handle_msg, msg)
         except Empty:
             pass
@@ -372,6 +373,8 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
                 case MsgType.ScanError:
                     self.log.error("An error occured during a scan: %s",
                                    msg.payload)
+                case MsgType.PlayFinished:
+                    self.log.debug("Finished playing a Video. Yay!")
         except Exception as err:  # pylint: disable-msg=W0718
             self.log.error("%s while handling message of type %s: %s",
                            err.__class__.__name__,
@@ -503,8 +506,15 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
             tmenu.add(litem)
 
         cmenu.add(gtk.MenuItem.new_with_label(vid.dsp_title))
+
+        pitem = gtk.MenuItem.new_with_mnemonic("_Play")
+        cmenu.add(pitem)
+        # Register callback!
+        pitem.connect("activate", self.vid_play, vid)
+
         cmenu.add(titem)
         titem.set_submenu(tmenu)
+
         hide_item = gtk.CheckMenuItem.new_with_mnemonic("_Hide?")
         hide_item.set_active(vid.hidden)
         hide_item.connect("activate", self.vid_hide_cb, vid, viter)
@@ -621,6 +631,28 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         self.vid_filter.refilter()
         cfg: Config = Config()
         cfg.update("GUI", "DisplayHidden", self.display_hidden)
+
+    def vid_play(self, _ignore, v: Video) -> None:
+        """Start playing a Video."""
+        self.log.debug("Let's play!")
+        thr = Thread(target=self._play_file, args=(v, ), daemon=True)
+        thr.start()
+
+    def _play_file(self, v: Video) -> None:
+        """Play the Video."""
+        self.log.debug("About to play %s", v.dsp_title)
+        cmd: list[str] = [
+            "mpv",
+            "--mute",
+            v.path,
+        ]
+
+        res = subprocess.run(cmd,
+                             check=False,
+                             stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL)
+        msg = Message(MsgType.PlayFinished, res)
+        self.mq.put(msg)
 
 
 if __name__ == '__main__':
