@@ -1,5 +1,5 @@
 # -*- mode: org; fill-column: 78; -*-
-# Time-stamp: <2025-07-01 13:43:00 krylon>
+# Time-stamp: <2025-07-01 14:27:15 krylon>
 #
 #+TAGS: internals(i) ui(u) bug(b) feature(f)
 #+TAGS: database(d) design(e), meditation(m)
@@ -8,7 +8,7 @@
 #+TODO: MEDITATE(m) PLANNING(p) | SUSPENDED(s)
 #+PRIORITIES: A G D
 
-* Hollywoo [2/5]
+* Hollywoo [3/5]
   :PROPERTIES:
   :COOKIE_DATA: todo recursive
   :VISIBILITY: children
@@ -16,18 +16,19 @@
   A naive video library
 ** Clocktable
    #+BEGIN: clocktable :scope file :maxlevel 255 :emphasize t
-   #+CAPTION: Clock summary at [2025-07-01 Di 13:42]
+   #+CAPTION: Clock summary at [2025-07-01 Di 14:27]
    | Headline               | Time      |           |       |      |
    |------------------------+-----------+-----------+-------+------|
-   | *Total time*           | *1d 6:23* |           |       |      |
+   | *Total time*           | *1d 6:59* |           |       |      |
    |------------------------+-----------+-----------+-------+------|
-   | *Hollywoo [2/5]*       | *1d 6:23* |           |       |      |
-   | \_  /Components [2/5]/ |           | /1d 6:23/ |       |      |
+   | *Hollywoo [3/5]*       | *1d 6:59* |           |       |      |
+   | \_  /Components [3/5]/ |           | /1d 6:59/ |       |      |
    | \_    Model [0/0]      |           |           |  0:17 |      |
    | \_    Config [0/0]     |           |           |  0:13 |      |
    | \_    Database [0/1]   |           |           |  5:02 |      |
    | \_    Scanner [1/1]    |           |           |  3:21 |      |
-   | \_    GUI [1/3]        |           |           | 21:30 |      |
+   | \_    GUI [2/3]        |           |           | 22:06 |      |
+   | \_      Let us play!   |           |           |       | 0:36 |
    | \_      Out of context |           |           |       | 5:04 |
    #+END:
 ** Journal
@@ -36,7 +37,7 @@
    :COOKIE_DATA: todo recursive
    :VISIBILITY: children
    :END:
-** Components [2/5]
+** Components [3/5]
    :PROPERTIES:
    :COOKIE_DATA: todo recursive
    :VISIBILITY: children
@@ -102,7 +103,7 @@
      for. Processing the data is going to be tedious (/very/ tedious), but it
      should be doable.
      That is going to complicate my model, though.
-*** GUI [1/3]
+*** GUI [2/3]
     :PROPERTIES:
     :COOKIE_DATA: todo recursive
     :VISIBILITY: children
@@ -119,7 +120,11 @@
     CLOCK: [2025-06-25 Mi 19:47]--[2025-06-26 Do 00:41] =>  4:54
     CLOCK: [2025-06-25 Mi 17:26]--[2025-06-25 Mi 19:39] =>  2:13
     :END:
-**** TODO [#D] Play Videos
+**** DONE [#D] Let us play!
+     CLOSED: [2025-07-01 Di 14:27]
+     :LOGBOOK:
+     CLOCK: [2025-07-01 Di 13:50]--[2025-07-01 Di 14:26] =>  0:36
+     :END:
      That would include multiple selection, maybe even playlist management.
 **** TODO Persist and restore window size and position
 **** DONE Out of context
