@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-26 17:17:29 krylon>
+# Time-stamp: <2025-07-01 15:05:47 krylon>
 #
 # /data/code/python/hollywoo/scanner.py
 # created on 23. 06. 2025
@@ -124,15 +124,18 @@ class Scanner:
         return root
 
     def _get_metadata(self, vid: str) -> defaultdict:
-        m = MediaInfo.parse(vid)
-        info: defaultdict = defaultdict(lambda: None)
-        if len(m.video_tracks) == 0 or len(m.general_tracks) == 0:
-            return info
-        info["resolution"] = Resolution(m.video_tracks[0].width,
-                                        m.video_tracks[0].height)
-        info["duration"] = m.video_tracks[0].duration
-        info["title"] = m.general_tracks[0].title or m.general_tracks[0].movie_name
-        info["performer"] = m.general_tracks[0].performer
+        try:
+            m = MediaInfo.parse(vid)
+            info: defaultdict = defaultdict(lambda: None)
+            if len(m.video_tracks) == 0 or len(m.general_tracks) == 0:
+                return info
+            info["resolution"] = Resolution(m.video_tracks[0].width,
+                                            m.video_tracks[0].height)
+            info["duration"] = m.video_tracks[0].duration
+            info["title"] = m.general_tracks[0].title or m.general_tracks[0].movie_name
+            info["performer"] = m.general_tracks[0].performer
+        except UnicodeEncodeError:
+            return defaultdict(lambda: None)
 
         return info
 
