@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-30 18:12:17 krylon>
+# Time-stamp: <2025-07-01 13:25:16 krylon>
 #
 # /data/code/python/hollywoo/database.py
 # created on 21. 06. 2025
@@ -164,6 +164,7 @@ class qid(IntEnum):
     VideoSetResolution = auto()
     VideoSetDuration = auto()
     VideoSetHidden = auto()
+    VideoDelete = auto()
     ProgramAdd = auto()
     ProgramSetTitle = auto()
     ProgramAddVideo = auto()
@@ -228,6 +229,7 @@ INSERT INTO video (folder_id, path, added, mtime, xres, yres, duration)
     qid.VideoSetResolution: "UPDATE video SET xres = ?, yres = ? WHERE id = ?",
     qid.VideoSetDuration: "UPDATE video SET duration = ? WHERE id = ?",
     qid.VideoSetHidden: "UPDATE video SET hidden = ? WHERE id = ?",
+    qid.VideoDelete: "DELETE FROM video WHERE id = ?",
     qid.VideoGetByID: """
 SELECT
     folder_id,
@@ -559,6 +561,11 @@ class Database:
         cur = self.db.cursor()
         cur.execute(qdb[qid.VideoSetHidden], (hidden, v.vid))
         v.hidden = hidden
+
+    def video_delete(self, v: Video) -> None:
+        """Remove a Video from the database."""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.VideoDelete], (v.vid, ))
 
     def video_get_by_id(self, vid: int) -> Optional[Video]:
         """Look up a Video by its ID."""
