@@ -1,5 +1,5 @@
 # -*- mode: org; fill-column: 78; -*-
-# Time-stamp: <2025-07-01 14:27:15 krylon>
+# Time-stamp: <2025-07-01 19:38:23 krylon>
 #
 #+TAGS: internals(i) ui(u) bug(b) feature(f)
 #+TAGS: database(d) design(e), meditation(m)
@@ -8,7 +8,7 @@
 #+TODO: MEDITATE(m) PLANNING(p) | SUSPENDED(s)
 #+PRIORITIES: A G D
 
-* Hollywoo [3/5]
+* Hollywoo [4/5]
   :PROPERTIES:
   :COOKIE_DATA: todo recursive
   :VISIBILITY: children
@@ -16,20 +16,21 @@
   A naive video library
 ** Clocktable
    #+BEGIN: clocktable :scope file :maxlevel 255 :emphasize t
-   #+CAPTION: Clock summary at [2025-07-01 Di 14:27]
-   | Headline               | Time      |           |       |      |
-   |------------------------+-----------+-----------+-------+------|
-   | *Total time*           | *1d 6:59* |           |       |      |
-   |------------------------+-----------+-----------+-------+------|
-   | *Hollywoo [3/5]*       | *1d 6:59* |           |       |      |
-   | \_  /Components [3/5]/ |           | /1d 6:59/ |       |      |
-   | \_    Model [0/0]      |           |           |  0:17 |      |
-   | \_    Config [0/0]     |           |           |  0:13 |      |
-   | \_    Database [0/1]   |           |           |  5:02 |      |
-   | \_    Scanner [1/1]    |           |           |  3:21 |      |
-   | \_    GUI [2/3]        |           |           | 22:06 |      |
-   | \_      Let us play!   |           |           |       | 0:36 |
-   | \_      Out of context |           |           |       | 5:04 |
+   #+CAPTION: Clock summary at [2025-07-01 Di 19:38]
+   | Headline                                 | Time      |           |       |      |
+   |------------------------------------------+-----------+-----------+-------+------|
+   | *Total time*                             | *1d 7:56* |           |       |      |
+   |------------------------------------------+-----------+-----------+-------+------|
+   | *Hollywoo [4/5]*                         | *1d 7:56* |           |       |      |
+   | \_  /Components [4/5]/                   |           | /1d 7:56/ |       |      |
+   | \_    Model [0/0]                        |           |           |  0:17 |      |
+   | \_    Config [0/0]                       |           |           |  0:13 |      |
+   | \_    Database [1/1]                     |           |           |  5:02 |      |
+   | \_    Scanner [1/1]                      |           |           |  3:21 |      |
+   | \_    GUI [2/3]                          |           |           | 23:03 |      |
+   | \_      Let us play!                     |           |           |       | 0:36 |
+   | \_      Persist and restore window state |           |           |       | 0:57 |
+   | \_      Out of context                   |           |           |       | 5:04 |
    #+END:
 ** Journal
 ** Features [0/0]
@@ -37,7 +38,7 @@
    :COOKIE_DATA: todo recursive
    :VISIBILITY: children
    :END:
-** Components [3/5]
+** Components [4/5]
    :PROPERTIES:
    :COOKIE_DATA: todo recursive
    :VISIBILITY: children
@@ -58,7 +59,7 @@
     :LOGBOOK:
     CLOCK: [2025-06-30 Mo 18:33]--[2025-06-30 Mo 18:46] =>  0:13
     :END:
-*** Database [0/1]
+*** Database [1/1]
     :PROPERTIES:
     :COOKIE_DATA: todo recursive
     :VISIBILITY: children
@@ -73,13 +74,16 @@
     CLOCK: [2025-06-21 Sa 18:51]--[2025-06-21 Sa 21:00] =>  2:09
     CLOCK: [2025-06-21 Sa 18:02]--[2025-06-21 Sa 18:35] =>  0:33
     :END:
-**** MEDITATE [#G] Relative paths?
+**** CANCELLED [#G] Relative paths?
+     CLOSED: [2025-07-01 Di 14:36]
      I had this problem before - if I store the full path of every file, that
      amounts to a lot of wasted space. I *could* attempt to store the path
      only relative to the folder a Video was found in.
      However, that causes a lot of headaches I am not sure I am ready to
      handle. And I am not sure, either, if it is worth the effort.
      Still, might be a fun way to spend an otherwise boring weekend.
+     ... After thinking about for some time, I have reached the conclusion
+     that it is not worth the hassle.
 *** Scanner [1/1]
     :PROPERTIES:
     :COOKIE_DATA: todo recursive
@@ -126,7 +130,10 @@
      CLOCK: [2025-07-01 Di 13:50]--[2025-07-01 Di 14:26] =>  0:36
      :END:
      That would include multiple selection, maybe even playlist management.
-**** TODO Persist and restore window size and position
+**** TODO Persist and restore window state
+     :LOGBOOK:
+     CLOCK: [2025-07-01 Di 15:13]--[2025-07-01 Di 16:10] =>  0:57
+     :END:
 **** DONE Out of context
      CLOSED: [2025-06-30 Mo 18:33]
      :LOGBOOK:
