@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-30 20:59:32 krylon>
+# Time-stamp: <2025-07-01 12:50:22 krylon>
 #
 # /data/code/python/hollywoo/gui.py
 # created on 24. 06. 2025
@@ -121,6 +121,7 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
 
         self.fm_item_add = gtk.MenuItem.new_with_mnemonic("_Add Folder")
         self.fm_item_scan = gtk.MenuItem.new_with_mnemonic("_Scan Folders")
+        self.fm_item_reload = gtk.MenuItem.new_with_mnemonic("_Reload all")
         self.fm_item_quit = gtk.MenuItem.new_with_mnemonic("_Quit")
 
         self.menubar.add(self.mb_file_item)
@@ -130,6 +131,7 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         self.mb_file_item.set_submenu(self.menu_file)
         self.menu_file.add(self.fm_item_add)
         self.menu_file.add(self.fm_item_scan)
+        self.menu_file.add(self.fm_item_reload)
         self.menu_file.add(self.fm_item_quit)
 
         self.em_show_hidden = gtk.CheckMenuItem.new_with_mnemonic("Display _Hidden?")
@@ -228,6 +230,7 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
 
         self.fm_item_quit.connect("activate", self._quit)
         self.fm_item_add.connect("activate", self.handle_add_folder)
+        self.fm_item_reload.connect("activate", self._reload_data)
 
         self.em_tag_create.connect("activate", self.handle_create_tag)
         self.em_show_hidden.connect("activate", self._toggle_show_hidden_cb)
@@ -269,6 +272,17 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
             dlg.run()  # pylint: disable-msg=E1101
         finally:
             dlg.destroy()
+
+    def _reload_data(self, *_ignore) -> None:
+        """Clear and re-fill all data stores."""
+        self.root_store.clear()
+        self.vid_store.clear()
+        self.tag_store.clear()
+        self.vids.clear()
+        self.vid_filter.refilter()
+
+        self._load_data()
+        self._load_tags()
 
     def _load_data(self) -> None:
         folders = self.db.folder_get_all()
@@ -401,6 +415,7 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
 
         for v in vids:
             viter = self.vid_store.append()
+            tags = self.db.tag_link_get_by_vid(v)
             # TODO Load data for tags and linked people
             self.vid_store.set(
                 viter,
@@ -410,7 +425,7 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
                  v.title,
                  str(v.resolution),
                  v.dur_str,
-                 "",
+                 ", ".join([x.name for x in tags]),
                  ""),
             )
 
