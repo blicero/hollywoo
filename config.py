@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-30 18:39:53 krylon>
+# Time-stamp: <2025-07-01 12:57:05 krylon>
 #
 # /data/code/python/hollywoo/config.py
 # created on 30. 06. 2025
@@ -97,10 +97,7 @@ class Config:
     def update(self, section: str, key: str, val: Any) -> None:
         """Set a config value."""
         try:
-            assert section in self.doc
-            sec = self.doc[section]
-            assert isinstance(sec, Container)
-            sec[key] = val
+            self.doc[section][key] = val
 
             with open_lock:
                 self.cfg.write(self.doc)
