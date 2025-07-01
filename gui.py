@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-07-01 14:15:57 krylon>
+# Time-stamp: <2025-07-01 15:40:15 krylon>
 #
 # /data/code/python/hollywoo/gui.py
 # created on 24. 06. 2025
@@ -101,8 +101,8 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         self.display_hidden: bool = False
         self.vids: dict[int, Video] = {}
 
-        cfg: Config = Config()
-        self.display_hidden = cfg.get("GUI", "DisplayHidden")
+        self.cfg: Config = Config()
+        self.display_hidden = self.cfg.get("GUI", "DisplayHidden")
 
         # Create the widgets.
 
@@ -249,6 +249,10 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
                               self._handle_vid_view_click)
 
         glib.timeout_add(500, self.check_queue)
+        # TODO I really should listen for changes in size or position, this is
+        #      rather crude.
+        self.win.connect("window-state-event", self._save_window_state)
+        # glib.timeout_add(15000, self._save_window_state)
 
         # And show yourself, you cowardly window!
 
@@ -257,6 +261,29 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
 
         glib.timeout_add(50, self._load_data)
         glib.timeout_add(60, self._load_tags)
+        glib.timeout_add(25, self._restore_window_state)
+
+    def _restore_window_state(self, *_ignore: Any) -> bool:
+        size = self.cfg.get("GUI", "Size")
+        pos = self.cfg.get("GUI", "Position")
+
+        self.win.resize(size[0], size[1])
+        self.win.move(pos[0], pos[1])
+
+        return False
+
+    def _save_window_state(self, *_ignore: Any) -> bool:
+        size = self.win.get_size()
+        pos = self.win.get_position()
+
+        self.log.debug("Save Window state: %dx%d @ %d/%d",
+                       size[0], size[1],
+                       pos[0], pos[1])
+
+        self.cfg.update("GUI", "Size", size)
+        self.cfg.update("GUI", "Position", pos)
+
+        return True
 
     def _display_msg(self, msg: str, modal: bool = True) -> None:
         """Display a message in a dialog."""
@@ -629,8 +656,7 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
     def _toggle_show_hidden_cb(self, _widget) -> None:
         self.display_hidden = not self.display_hidden
         self.vid_filter.refilter()
-        cfg: Config = Config()
-        cfg.update("GUI", "DisplayHidden", self.display_hidden)
+        self.cfg.update("GUI", "DisplayHidden", self.display_hidden)
 
     def vid_play(self, _ignore, v: Video) -> None:
         """Start playing a Video."""
