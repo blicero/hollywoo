@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-07-01 12:50:22 krylon>
+# Time-stamp: <2025-07-01 13:42:03 krylon>
 #
 # /data/code/python/hollywoo/gui.py
 # created on 24. 06. 2025
@@ -16,6 +16,7 @@ hollywoo.gui
 (c) 2025 Benjamin Walkenhorst
 """
 
+import os
 from enum import Enum, auto
 from queue import Empty, Queue, ShutDown
 from threading import Lock, Thread
@@ -118,6 +119,7 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
 
         self.menu_file = gtk.Menu()
         self.menu_edit = gtk.Menu()
+        self.menu_debug = gtk.Menu()
 
         self.fm_item_add = gtk.MenuItem.new_with_mnemonic("_Add Folder")
         self.fm_item_scan = gtk.MenuItem.new_with_mnemonic("_Scan Folders")
@@ -135,12 +137,16 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         self.menu_file.add(self.fm_item_quit)
 
         self.em_show_hidden = gtk.CheckMenuItem.new_with_mnemonic("Display _Hidden?")
-        self.em_show_hidden.set_active = self.display_hidden
+        self.em_show_hidden.set_active(self.display_hidden)
         self.em_tag_create = gtk.MenuItem.new_with_mnemonic("Create _Tag")
 
         self.mb_edit_item.set_submenu(self.menu_edit)
         self.menu_edit.add(self.em_tag_create)
         self.menu_edit.add(self.em_show_hidden)
+
+        self.mb_debug_item.set_submenu(self.menu_debug)
+        self.dbg_purge_item = gtk.MenuItem.new_with_mnemonic("_Purge deleted Videos")
+        self.menu_debug.add(self.dbg_purge_item)
 
         # Create the TreeViews and models
 
@@ -235,6 +241,8 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         self.em_tag_create.connect("activate", self.handle_create_tag)
         self.em_show_hidden.connect("activate", self._toggle_show_hidden_cb)
 
+        self.dbg_purge_item.connect("activate", self._purge)
+
         self.vid_view.connect("button-press-event",
                               self._handle_vid_view_click)
 
@@ -306,6 +314,26 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
                 self.tag_store.set(viter,
                                    (2, 3, 4, 5),
                                    (v.vid, v.dsp_title, str(v.resolution), v.dur_str))
+
+    def _purge(self, _ignore) -> None:
+        """Remove any videos from the database that no longer exist in the file system."""
+        del_cnt: int = 0
+        del_ids: list[int] = []
+        with self.db:
+            for v_id, vid in self.vids.items():
+                if not os.path.isfile(vid.path):
+                    self.log.debug("Video %s appears to not exist anymore.",
+                                   vid.dsp_title)
+                    self.db.video_delete(vid)
+                    # del self.vids[v_id]
+                    del_ids.append(v_id)
+                    del_cnt += 1
+        if del_cnt > 0:
+            self.log.debug("Removed %d deleted Videos from database, reloading data stores.""",
+                           del_cnt)
+            for v in del_ids:
+                del self.vids[v]
+            self._reload_data()
 
     def run(self):
         """Execute the Gtk event loop."""
