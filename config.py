@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-07-01 12:57:05 krylon>
+# Time-stamp: <2025-07-01 13:32:30 krylon>
 #
 # /data/code/python/hollywoo/config.py
 # created on 30. 06. 2025
@@ -23,7 +23,7 @@ from typing import Any, Final
 import krylib
 import tomlkit
 from tomlkit.items import Table
-from tomlkit.toml_document import Container, TOMLDocument
+from tomlkit.toml_document import TOMLDocument
 from tomlkit.toml_file import TOMLFile
 
 from hollywoo import common
@@ -97,7 +97,7 @@ class Config:
     def update(self, section: str, key: str, val: Any) -> None:
         """Set a config value."""
         try:
-            self.doc[section][key] = val
+            self.doc[section][key] = val  # type: ignore
 
             with open_lock:
                 self.cfg.write(self.doc)
