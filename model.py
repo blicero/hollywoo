@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-06-30 09:30:07 krylon>
+# Time-stamp: <2025-07-02 10:09:13 krylon>
 #
 # /data/code/python/hollywoo/model.py
 # created on 21. 06. 2025
@@ -71,6 +71,8 @@ class Video:
     @property
     def dur_str(self) -> str:
         """Return the duration as a human-readable string."""
+        if self.duration is None:
+            return "--:--:--"
         hours: int = 0
         minutes: int = 0
         seconds: int = int(self.duration / 1000)

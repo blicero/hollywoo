@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-07-01 15:40:15 krylon>
+# Time-stamp: <2025-07-02 10:07:59 krylon>
 #
 # /data/code/python/hollywoo/gui.py
 # created on 24. 06. 2025
@@ -503,7 +503,10 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
 
         v_id: Final[int] = self.vid_store[tree_iter][0]
         vid = self.db.video_get_by_id(v_id)
-        assert vid is not None
+        # assert vid is not None
+        if vid is None:
+            self.log.debug("No Video was found at click")
+            return
 
         self.log.debug("Clicked on Video %s",
                        vid.dsp_title)
