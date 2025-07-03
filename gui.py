@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-07-03 15:49:10 krylon>
+# Time-stamp: <2025-07-03 16:07:09 krylon>
 #
 # /data/code/python/hollywoo/gui.py
 # created on 24. 06. 2025
@@ -603,8 +603,6 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
                           t)
             tmenu.add(litem)
 
-        cmenu.add(gtk.MenuItem.new_with_label(vid.dsp_title))
-
         # Now we deal with people. I am not a people person (-ish)
         people_item = gtk.MenuItem.new_with_mnemonic("_People")
         people_menu = gtk.Menu()
@@ -631,19 +629,21 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
                 ritem.connect("activate", self.handle_person_link_set, p, vid, r, not linked)
 
         people_item.set_submenu(people_menu)
-        cmenu.add(people_item)
 
         play_item = gtk.MenuItem.new_with_mnemonic("_Play")
-        cmenu.add(play_item)
         # Register callback!
         play_item.connect("activate", self.vid_play, vid)
 
-        cmenu.add(titem)
         titem.set_submenu(tmenu)
 
         hide_item = gtk.CheckMenuItem.new_with_mnemonic("_Hide?")
         hide_item.set_active(vid.hidden)
         hide_item.connect("activate", self.vid_hide_cb, vid, viter)
+
+        cmenu.add(gtk.MenuItem.new_with_label(vid.dsp_title))
+        cmenu.add(people_item)
+        cmenu.add(titem)
+        cmenu.add(play_item)
         cmenu.add(hide_item)
 
         return cmenu
