@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-07-03 14:52:41 krylon>
+# Time-stamp: <2025-07-03 15:49:10 krylon>
 #
 # /data/code/python/hollywoo/gui.py
 # created on 24. 06. 2025
@@ -18,6 +18,7 @@ hollywoo.gui
 
 import os
 import subprocess
+from collections import defaultdict
 from datetime import datetime
 from enum import Enum, auto
 from queue import Empty, Queue, ShutDown
@@ -75,14 +76,14 @@ tag_cols: Final[list[tuple[str, type]]] = [  # noqa: F841 pylint: disable-msg=W0
 ]
 
 person_cols: Final[list[tuple[str, type]]] = [
-    ("ID", int),
-    ("Name", str),
-    ("Born", int),
-    ("Role", str),
-    ("Video ID", int),
-    ("Video Title", str),
-    ("Video Res", str),
-    ("Video Dur", str),
+    ("ID", int),                # 0
+    ("Name", str),              # 1
+    ("Born", int),              # 2
+    ("Role", str),              # 3
+    ("Video ID", int),          # 4
+    ("Video Title", str),       # 5
+    ("Video Res", str),         # 6
+    ("Video Dur", str),         # 7
 ]
 
 roles: Final[list[str]] = ["Actor", "Director"]
@@ -196,6 +197,7 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
 
         glib.timeout_add(50, self._load_data)
         glib.timeout_add(60, self._load_tags)
+        glib.timeout_add(70, self._load_people)
         glib.timeout_add(25, self._restore_window_state)
 
     def __create_menus(self) -> None:
@@ -319,18 +321,16 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         return False
 
     def _save_window_state(self, *_ignore: Any) -> bool:
-        try:
-            size = self.win.get_size()
-            pos = self.win.get_position()
+        size = self.win.get_size()
+        pos = self.win.get_position()
 
-            self.log.debug("Save Window state: %dx%d @ %d/%d",
-                           size[0], size[1],
-                           pos[0], pos[1])
+        self.log.debug("Save Window state: %dx%d @ %d/%d",
+                       size[0], size[1],
+                       pos[0], pos[1])
 
-            self.cfg.update("GUI", "Size", size)
-            self.cfg.update("GUI", "Position", pos)
-        finally:
-            return True
+        self.cfg.update("GUI", "Size", size)
+        self.cfg.update("GUI", "Position", pos)
+        return True
 
     def _display_msg(self, msg: str, modal: bool = True) -> None:
         """Display a message in a dialog."""
@@ -389,7 +389,30 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
                 viter = self.tag_store.append(titer)
                 self.tag_store.set(viter,
                                    (2, 3, 4, 5),
-                                   (v.vid, v.dsp_title, str(v.resolution), v.dur_str))
+                                   (v.vid, v.dsp_title, v.res_str, v.dur_str))
+
+    def _load_people(self) -> None:
+        people = self.db.person_get_all()
+
+        for p in people:
+            piter = self.person_store.append(None)
+            self.person_store.set(piter,
+                                  (0, 1, 2),
+                                  (p.pid,
+                                   p.name,
+                                   p.born))
+
+            vids = self.db.person_link_get_by_person(p)
+
+            for v in vids:
+                viter = self.person_store.append(piter)
+                self.person_store.set(viter,
+                                      (3, 4, 5, 6, 7),
+                                      (v[1],
+                                       v[0].vid,
+                                       v[0].dsp_title,
+                                       v[0].res_str,
+                                       v[0].dur_str))
 
     def _purge(self, _ignore) -> None:
         """Remove any videos from the database that no longer exist in the file system."""
@@ -401,7 +424,6 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
                     self.log.debug("Video %s appears to not exist anymore.",
                                    vid.dsp_title)
                     self.db.video_delete(vid)
-                    # del self.vids[v_id]
                     del_ids.append(v_id)
                     del_cnt += 1
         if del_cnt > 0:
@@ -528,7 +550,7 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
                 (v.vid,
                  v.path,
                  v.title,
-                 str(v.resolution),
+                 v.res_str,
                  v.dur_str,
                  ", ".join([x.name for x in tags]),
                  ""),
@@ -562,7 +584,8 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         menu.show_all()
         menu.popup_at_pointer(evt)
 
-    def _mk_ctx_menu_vid(self, viter: gtk.TreeIter, vid: Video) -> gtk.Menu:
+    def _mk_ctx_menu_vid(self, viter: gtk.TreeIter, vid: Video) \
+            -> gtk.Menu:  # pylint: disable-msg=R0914
         tags = self.db.tag_get_all_vid(vid)
 
         cmenu = gtk.Menu()
@@ -587,13 +610,25 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         people_menu = gtk.Menu()
 
         people = self.db.person_get_all()
+        plinklist = self.db.person_link_get_by_video(vid)
+        plinks: defaultdict[int, list[str]] = defaultdict(list)
+
+        for lnk in plinklist:
+            plinks[lnk[0].pid].append(lnk[1])
+
         for p in people:
             rmenu = gtk.Menu()
             ppitem = gtk.MenuItem.new_with_label(p.name)
             ppitem.set_submenu(rmenu)
+            people_menu.add(ppitem)
+
             for r in roles:
                 ritem = gtk.CheckMenuItem.new_with_label(r)
                 rmenu.add(ritem)
+                linked: bool = r in plinks[p.pid]
+                if linked:
+                    ritem.set_active(True)
+                ritem.connect("activate", self.handle_person_link_set, p, vid, r, not linked)
 
         people_item.set_submenu(people_menu)
         cmenu.add(people_item)
@@ -643,7 +678,7 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
                                (2, 3, 4, 5),
                                (vid.vid,
                                 vid.dsp_title,
-                                str(vid.resolution),
+                                vid.res_str,
                                 vid.dur_str))
         else:
             diter: gtk.TreeIter = self.tag_store.iter_children(titer)
@@ -797,6 +832,44 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         finally:
             self.log.debug("We may or may not have created a Person.")
             dlg.destroy()
+
+    def handle_person_link_set(self, _ignore, p: Person, v: Video, role: str, create: bool) -> None:
+        """Create or remove a Person-Video link."""
+        with self.db:
+            if create:
+                self.db.person_link_add(p, v, role)
+            else:
+                self.db.person_link_remove(p, v, role)
+
+        piter = self.person_store.get_iter_first()
+        pid: int = self.person_store[piter][0]
+
+        while pid != p.pid and piter is not None:
+            piter = self.person_store.iter_next(piter)
+            pid = self.person_store[piter][0]
+
+        if piter is None:
+            # This should not happen
+            self.log.critical("CANTHAPPEN - Person %s (%d) not found in person_store",
+                              p.name,
+                              p.pid)
+            return
+
+        if create:
+            viter = self.person_store.append(piter)
+            self.person_store.set(viter,
+                                  (3, 4, 5, 6, 7),
+                                  (role,
+                                   v.vid,
+                                   v.dsp_title,
+                                   v.res_str,
+                                   v.dur_str))
+        else:
+            viter = self.person_store.iter_nth_child(piter, 0)
+            while viter is not None and self.person_store[viter][4] != v.vid:
+                viter = self.person_store.iter_next(viter)
+
+            self.person_store.remove(viter)
 
 
 if __name__ == '__main__':
