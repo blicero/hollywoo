@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-07-02 14:14:44 krylon>
+# Time-stamp: <2025-07-03 15:37:29 krylon>
 #
 # /data/code/python/hollywoo/model.py
 # created on 21. 06. 2025
@@ -90,6 +90,11 @@ class Video:
 
         return os.path.basename(self.path)
 
+    @property
+    def res_str(self) -> str:
+        """Return the stringified resolution."""
+        return f"{self.resolution.x}x{self.resolution.y}"
+
 
 @dataclass(slots=True, kw_only=True)
 class Program:
@@ -118,7 +123,7 @@ class Person:
     pid: int = -1
     name: str
     born: Optional[int] = None
-    links: dict[str, str] = field(default_factory=dict)
+    urls: dict[str, str] = field(default_factory=dict)
 
 
 # Local Variables: #
