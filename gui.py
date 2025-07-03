@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-07-02 10:07:59 krylon>
+# Time-stamp: <2025-07-03 14:52:41 krylon>
 #
 # /data/code/python/hollywoo/gui.py
 # created on 24. 06. 2025
@@ -18,6 +18,7 @@ hollywoo.gui
 
 import os
 import subprocess
+from datetime import datetime
 from enum import Enum, auto
 from queue import Empty, Queue, ShutDown
 from threading import Lock, Thread
@@ -29,7 +30,7 @@ import krylib
 from hollywoo import common
 from hollywoo.config import Config
 from hollywoo.database import Database
-from hollywoo.model import Folder, Tag, Video
+from hollywoo.model import Folder, Person, Tag, Video
 from hollywoo.scanner import Scanner
 
 gi.require_version("Gtk", "3.0")
@@ -73,6 +74,19 @@ tag_cols: Final[list[tuple[str, type]]] = [  # noqa: F841 pylint: disable-msg=W0
     ("Video Dur", str),
 ]
 
+person_cols: Final[list[tuple[str, type]]] = [
+    ("ID", int),
+    ("Name", str),
+    ("Born", int),
+    ("Role", str),
+    ("Video ID", int),
+    ("Video Title", str),
+    ("Video Res", str),
+    ("Video Dur", str),
+]
+
+roles: Final[list[str]] = ["Actor", "Director"]
+
 
 class MsgType(Enum):
     """MsgType identifies a type of event the GUI thread might want to know about."""
@@ -112,7 +126,79 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         self.notebook = gtk.Notebook.new()  # pylint: disable-msg=E1120
 
         # Create the menu
+        self.__create_menus()
 
+        # Create the TreeViews and models
+        self.__create_views()
+
+        # Assemble the widgets
+
+        self.win.add(self.mbox)
+
+        self.mbox.pack_start(self.menubar,
+                             False,
+                             True,
+                             0)
+        self.mbox.pack_start(self.notebook,
+                             False,
+                             True,
+                             0)
+
+        self.root_sw.add(self.root_view)
+        self.vid_sw.add(self.vid_view)
+        self.tag_sw.add(self.tag_view)
+        self.person_sw.add(self.person_view)
+
+        self.notebook.append_page(
+            self.root_sw,
+            gtk.Label.new("Folders"))
+
+        self.notebook.append_page(
+            self.vid_sw,
+            gtk.Label.new("Videos"))
+
+        self.notebook.append_page(
+            self.tag_sw,
+            gtk.Label.new("Tags"))
+
+        self.notebook.append_page(
+            self.person_sw,
+            gtk.Label.new("People"))
+
+        # Register signal handlers
+
+        self.win.connect("destroy", self._quit)
+
+        self.fm_item_quit.connect("activate", self._quit)
+        self.fm_item_add.connect("activate", self.handle_add_folder)
+        self.fm_item_reload.connect("activate", self._reload_data)
+
+        self.em_tag_create.connect("activate", self.handle_create_tag)
+        self.em_person_create.connect("activate", self.handle_person_create)
+        self.em_show_hidden.connect("activate", self._toggle_show_hidden_cb)
+
+        self.dbg_purge_item.connect("activate", self._purge)
+        self.dbg_wstate_item.connect("activate", self._save_window_state)
+
+        self.vid_view.connect("button-press-event",
+                              self._handle_vid_view_click)
+
+        glib.timeout_add(500, self.check_queue)
+        # TODO I really should listen for changes in size or position, this is
+        #      rather crude.
+        # self.win.connect("window-state-event", self._save_window_state)
+        # glib.timeout_add(15000, self._save_window_state)
+
+        # And show yourself, you cowardly window!
+
+        self.win.show_all()
+        self.win.visible = True
+
+        glib.timeout_add(50, self._load_data)
+        glib.timeout_add(60, self._load_tags)
+        glib.timeout_add(25, self._restore_window_state)
+
+    def __create_menus(self) -> None:
         self.menubar = gtk.MenuBar()
 
         self.mb_file_item = gtk.MenuItem.new_with_mnemonic("_File")
@@ -141,17 +227,20 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         self.em_show_hidden = gtk.CheckMenuItem.new_with_mnemonic("Display _Hidden?")
         self.em_show_hidden.set_active(self.display_hidden)
         self.em_tag_create = gtk.MenuItem.new_with_mnemonic("Create _Tag")
+        self.em_person_create = gtk.MenuItem.new_with_mnemonic("Create _Person")
 
         self.mb_edit_item.set_submenu(self.menu_edit)
         self.menu_edit.add(self.em_tag_create)
+        self.menu_edit.add(self.em_person_create)
         self.menu_edit.add(self.em_show_hidden)
 
         self.mb_debug_item.set_submenu(self.menu_debug)
         self.dbg_purge_item = gtk.MenuItem.new_with_mnemonic("_Purge deleted Videos")
+        self.dbg_wstate_item = gtk.MenuItem.new_with_mnemonic("Save _window state")
         self.menu_debug.add(self.dbg_purge_item)
+        self.menu_debug.add(self.dbg_wstate_item)
 
-        # Create the TreeViews and models
-
+    def __create_views(self) -> None:
         self.root_store = gtk.ListStore(*(c[1] for c in root_cols))
         self.root_view = gtk.TreeView(model=self.root_store)
         self.root_sw = gtk.ScrolledWindow.new(None, None)
@@ -203,65 +292,22 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
             col.set_resizable(True)
             self.tag_view.append_column(col)
 
-        # Assemble the widgets
+        self.person_store = gtk.TreeStore(*(c[1] for c in person_cols))
+        self.person_view = gtk.TreeView.new_with_model(self.person_store)
+        self.person_sw = gtk.ScrolledWindow.new(None, None)
+        self.person_sw.set_vexpand(True)
+        self.person_sw.set_hexpand(True)
 
-        self.win.add(self.mbox)
-
-        self.mbox.pack_start(self.menubar,
-                             False,
-                             True,
-                             0)
-        self.mbox.pack_start(self.notebook,
-                             False,
-                             True,
-                             0)
-
-        self.root_sw.add(self.root_view)
-        self.vid_sw.add(self.vid_view)
-        self.tag_sw.add(self.tag_view)
-
-        self.notebook.append_page(
-            self.root_sw,
-            gtk.Label.new("Folders"))
-
-        self.notebook.append_page(
-            self.vid_sw,
-            gtk.Label.new("Videos"))
-
-        self.notebook.append_page(
-            self.tag_sw,
-            gtk.Label.new("Tags"))
-
-        # Register signal handlers
-
-        self.win.connect("destroy", self._quit)
-
-        self.fm_item_quit.connect("activate", self._quit)
-        self.fm_item_add.connect("activate", self.handle_add_folder)
-        self.fm_item_reload.connect("activate", self._reload_data)
-
-        self.em_tag_create.connect("activate", self.handle_create_tag)
-        self.em_show_hidden.connect("activate", self._toggle_show_hidden_cb)
-
-        self.dbg_purge_item.connect("activate", self._purge)
-
-        self.vid_view.connect("button-press-event",
-                              self._handle_vid_view_click)
-
-        glib.timeout_add(500, self.check_queue)
-        # TODO I really should listen for changes in size or position, this is
-        #      rather crude.
-        self.win.connect("window-state-event", self._save_window_state)
-        # glib.timeout_add(15000, self._save_window_state)
-
-        # And show yourself, you cowardly window!
-
-        self.win.show_all()
-        self.win.visible = True
-
-        glib.timeout_add(50, self._load_data)
-        glib.timeout_add(60, self._load_tags)
-        glib.timeout_add(25, self._restore_window_state)
+        for c in ((i, person_cols[i][0]) for i in range(len(person_cols))):
+            col = gtk.TreeViewColumn(
+                c[1],
+                gtk.CellRendererText(),
+                text=c[0],
+                size=12,
+                editable=False,
+            )
+            col.set_resizable(True)
+            self.person_view.append_column(col)
 
     def _restore_window_state(self, *_ignore: Any) -> bool:
         size = self.cfg.get("GUI", "Size")
@@ -273,17 +319,18 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
         return False
 
     def _save_window_state(self, *_ignore: Any) -> bool:
-        size = self.win.get_size()
-        pos = self.win.get_position()
+        try:
+            size = self.win.get_size()
+            pos = self.win.get_position()
 
-        self.log.debug("Save Window state: %dx%d @ %d/%d",
-                       size[0], size[1],
-                       pos[0], pos[1])
+            self.log.debug("Save Window state: %dx%d @ %d/%d",
+                           size[0], size[1],
+                           pos[0], pos[1])
 
-        self.cfg.update("GUI", "Size", size)
-        self.cfg.update("GUI", "Position", pos)
-
-        return True
+            self.cfg.update("GUI", "Size", size)
+            self.cfg.update("GUI", "Position", pos)
+        finally:
+            return True
 
     def _display_msg(self, msg: str, modal: bool = True) -> None:
         """Display a message in a dialog."""
@@ -503,15 +550,13 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
 
         v_id: Final[int] = self.vid_store[tree_iter][0]
         vid = self.db.video_get_by_id(v_id)
-        # assert vid is not None
+
         if vid is None:
             self.log.debug("No Video was found at click")
             return
 
         self.log.debug("Clicked on Video %s",
                        vid.dsp_title)
-
-        # self._display_msg("Coming soon: Context Menus!")
 
         menu = self._mk_ctx_menu_vid(tree_iter, vid)
         menu.show_all()
@@ -537,10 +582,26 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
 
         cmenu.add(gtk.MenuItem.new_with_label(vid.dsp_title))
 
-        pitem = gtk.MenuItem.new_with_mnemonic("_Play")
-        cmenu.add(pitem)
+        # Now we deal with people. I am not a people person (-ish)
+        people_item = gtk.MenuItem.new_with_mnemonic("_People")
+        people_menu = gtk.Menu()
+
+        people = self.db.person_get_all()
+        for p in people:
+            rmenu = gtk.Menu()
+            ppitem = gtk.MenuItem.new_with_label(p.name)
+            ppitem.set_submenu(rmenu)
+            for r in roles:
+                ritem = gtk.CheckMenuItem.new_with_label(r)
+                rmenu.add(ritem)
+
+        people_item.set_submenu(people_menu)
+        cmenu.add(people_item)
+
+        play_item = gtk.MenuItem.new_with_mnemonic("_Play")
+        cmenu.add(play_item)
         # Register callback!
-        pitem.connect("activate", self.vid_play, vid)
+        play_item.connect("activate", self.vid_play, vid)
 
         cmenu.add(titem)
         titem.set_submenu(tmenu)
@@ -682,6 +743,60 @@ class GUI:  # pylint: disable-msg=I1101,E1101,R0902
                              stderr=subprocess.DEVNULL)
         msg = Message(MsgType.PlayFinished, res)
         self.mq.put(msg)
+
+    def handle_person_create(self, _ignore) -> None:
+        """Prompt for a Person to create."""
+        self.log.debug("Create a Person maybe.")
+        try:
+            dlg = gtk.Dialog(
+                title="Create Person",
+                parent=self.win,
+                modal=True)
+            dlg.add_buttons(
+                gtk.STOCK_CANCEL,
+                gtk.ResponseType.CANCEL,
+                gtk.STOCK_OK,
+                gtk.ResponseType.OK)
+
+            grid = gtk.Grid.new()  # pylint: disable-msg=E1120
+            lbl_name = gtk.Label.new("Name: ")
+            edit_name = gtk.Entry.new()  # pylint: disable-msg=E1120
+            lbl_born = gtk.Label.new("Born: ")
+            edit_born = gtk.SpinButton.new_with_range(1970, datetime.now().year, 1)
+
+            grid.attach(lbl_name, 0, 0, 1, 1)
+            grid.attach(edit_name, 1, 0, 1, 1)
+            grid.attach(lbl_born, 0, 1, 1, 1)
+            grid.attach(edit_born, 1, 1, 1, 1)
+
+            dlg.get_content_area().add(grid)
+            dlg.show_all()  # pylint: disable-msg=E1101
+
+            res = dlg.run()
+            if res != gtk.ResponseType.OK:
+                return
+
+            name: Final[str] = edit_name.get_text()
+            born: Final[int] = edit_born.get_value_as_int()
+
+            person: Person = Person(name=name, born=born)
+
+            self.log.debug("Add Person %s, born %d",
+                           name,
+                           born)
+
+            with self.db:
+                self.db.person_add(person)
+
+            piter = self.person_store.append(None)
+            self.person_store.set(piter,
+                                  (0, 1, 2),
+                                  (person.pid,
+                                   person.name,
+                                   person.born))
+        finally:
+            self.log.debug("We may or may not have created a Person.")
+            dlg.destroy()
 
 
 if __name__ == '__main__':
