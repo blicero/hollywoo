@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-07-01 13:25:16 krylon>
+# Time-stamp: <2025-07-02 14:10:00 krylon>
 #
 # /data/code/python/hollywoo/database.py
 # created on 21. 06. 2025
@@ -26,7 +26,7 @@ from typing import Final, Optional, Union
 import krylib
 
 from hollywoo import common
-from hollywoo.model import Folder, Resolution, Tag, Video
+from hollywoo.model import Folder, Person, Resolution, Tag, Video
 
 
 class DBError(common.HollywooError):
@@ -140,6 +140,17 @@ CREATE TABLE person_vid_link (
       ON DELETE CASCADE
 ) STRICT
     """,
+    """
+CREATE TABLE person_url (
+    id INTEGER PRIMARY KEY,
+    person_id INTEGER NOT NULL,
+    url TEXT NOT NULL,
+    desc TEXT NOT NULL,
+    FOREIGN KEY (person_id) REFERENCES person (id)
+        ON UPDATE RESTRICT
+        ON DELETE CASCADE
+) STRICT
+    """,
 )
 
 
@@ -180,6 +191,8 @@ class qid(IntEnum):
     PersonAdd = auto()
     PersonUpdateName = auto()
     PersonUpdateBorn = auto()
+    PersonGetByID = auto()
+    PersonGetAll = auto()
     LinkPersonAdd = auto()
     LinkPersonGetByPerson = auto()
     LinkPersonGetByVid = auto()
@@ -354,9 +367,11 @@ LEFT OUTER JOIN tag_vid_link l ON t.id = l.tag_id AND l.vid_id = ?
 ORDER BY t.name
     """,
     qid.TagGetAll: """SELECT id, name FROM tag ORDER BY name""",
-    qid.PersonAdd: "INSERT INTO person (name) VALUES (?)",
+    qid.PersonAdd: "INSERT INTO person (name, born) VALUES (?, ?)",
     qid.PersonUpdateName: "UPDATE person SET name = ? WHERE id = ?",
     qid.PersonUpdateBorn: "UPDATE person SET born = ? WHERE id = ?",
+    qid.PersonGetByID: "SELECT name, born FROM person WHERE id = ?",
+    qid.PersonGetAll: "SELECT id, name, born FROM person ORDER BY name",
     qid.LinkPersonAdd: "INSERT INTO person_vid_link (pid, vid, role) VALUES (?, ?, ?)",
     qid.LinkPersonGetByPerson: """
 SELECT
@@ -768,6 +783,104 @@ class Database:
             self.log.error("Looks like Tag %s wasn't attaced to Video %s after all",
                            t.name,
                            v.dsp_title)
+
+    def person_add(self, p: Person) -> None:
+        """Add a Person to the database."""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.PersonAdd], (p.name, p.born))
+
+        pid = cur.lastrowid
+        if pid is not None:
+            p.pid = pid
+        else:
+            self.log.warning("Cursor does not have a lastrowid after adding a Person")
+
+    def person_update_name(self, p: Person, name: str) -> None:
+        """Update a Person's name."""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.PersonUpdateName], (name, p.pid))
+        p.name = name
+
+    def person_update_born(self, p: Person, born: Optional[int]) -> None:
+        """Update Person's year of birth."""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.PersonUpdateBorn], (born, p.pid))
+        p.born = born
+
+    def person_get_by_id(self, pid: int) -> Optional[Person]:
+        """Lookup a Person by their ID."""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.PersonGetByID], (pid, ))
+
+        row = cur.fetchone()
+        if row is None:
+            return None
+
+        p = Person(pid=pid,
+                   name=row[0],
+                   born=row[1])
+        return p
+
+    def person_get_all(self) -> list[Person]:
+        """Load all people from the database."""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.PersonGetAll])
+
+        people: list[Person] = []
+
+        for row in cur:
+            p = Person(pid=row[0],
+                       name=row[1],
+                       born=row[2])
+            people.append(p)
+
+        return people
+
+    def person_link_add(self, p: Person, v: Video, role: str) -> None:
+        """Link a Person to a Video."""
+        assert role != ""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.LinkPersonAdd], (p.pid, v.vid, role))
+
+    def person_link_get_by_person(self, p: Person) -> list[tuple[Video, str]]:
+        """Get a list of all Videos this person is linked to."""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.LinkPersonGetByPerson], (p.pid, ))
+
+        links: list[tuple[int, str]] = []
+
+        for row in cur:
+            links.append((row[0], row[1]))
+
+        vids: list[tuple[Video, str]] = []
+
+        for lnk in links:
+            v = self.video_get_by_id(lnk[0])
+            if v is not None:
+                vids.append((v, lnk[1]))
+
+        return vids
+
+    def person_link_get_by_video(self, v: Video) -> list[tuple[Person, str]]:
+        """Return a list of all people linked to a given Video."""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.LinkPersonGetByVid], (v.vid, ))
+
+        links: list[tuple[int, str]] = []
+
+        for row in cur:
+            lnk = (row[0], row[1])
+            links.append(lnk)
+
+        people: list[tuple[Person, str]] = []
+
+        for lnk in links:
+            p = self.person_get_by_id(lnk[0])
+            if p is not None:
+                people.append((p, lnk[1]))
+
+        return people
+
 
 # Local Variables: #
 # python-indent: 4 #

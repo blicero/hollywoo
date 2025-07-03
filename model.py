@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-07-02 10:09:13 krylon>
+# Time-stamp: <2025-07-02 14:14:44 krylon>
 #
 # /data/code/python/hollywoo/model.py
 # created on 21. 06. 2025
@@ -20,7 +20,7 @@ This module provides the domain-specific data types for use in our application.
 
 import os
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import datetime
 from typing import NamedTuple, Optional
 
 
@@ -115,9 +115,9 @@ class Person:
     This includes acting, but may also be directing, script writing, producing, etc.
     """
 
-    pid: int
+    pid: int = -1
     name: str
-    born: Optional[date] = None
+    born: Optional[int] = None
     links: dict[str, str] = field(default_factory=dict)
 
 
