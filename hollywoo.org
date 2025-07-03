@@ -1,5 +1,5 @@
 # -*- mode: org; fill-column: 78; -*-
-# Time-stamp: <2025-07-02 10:16:52 krylon>
+# Time-stamp: <2025-07-03 15:46:44 krylon>
 #
 #+TAGS: internals(i) ui(u) bug(b) feature(f)
 #+TAGS: database(d) design(e), meditation(m)
@@ -16,21 +16,22 @@
   A naive video library
 ** Clocktable
    #+BEGIN: clocktable :scope file :maxlevel 255 :emphasize t
-   #+CAPTION: Clock summary at [2025-07-02 Mi 10:16]
-   | Headline                                 | Time      |           |       |      |
-   |------------------------------------------+-----------+-----------+-------+------|
-   | *Total time*                             | *1d 8:27* |           |       |      |
-   |------------------------------------------+-----------+-----------+-------+------|
-   | *Hollywoo [4/5]*                         | *1d 8:27* |           |       |      |
-   | \_  /Components [4/5]/                   |           | /1d 8:27/ |       |      |
-   | \_    Model [0/0]                        |           |           |  0:17 |      |
-   | \_    Config [0/0]                       |           |           |  0:13 |      |
-   | \_    Database [1/1]                     |           |           |  5:02 |      |
-   | \_    Scanner [1/1]                      |           |           |  3:21 |      |
-   | \_    GUI [2/3]                          |           |           | 23:34 |      |
-   | \_      Let us play!                     |           |           |       | 0:36 |
-   | \_      Persist and restore window state |           |           |       | 0:57 |
-   | \_      Out of context                   |           |           |       | 5:04 |
+   #+CAPTION: Clock summary at [2025-07-03 Do 15:46]
+   | Headline                                 | Time       |            |         |      |
+   |------------------------------------------+------------+------------+---------+------|
+   | *Total time*                             | *1d 12:33* |            |         |      |
+   |------------------------------------------+------------+------------+---------+------|
+   | *Hollywoo [4/5]*                         | *1d 12:33* |            |         |      |
+   | \_  /Components [4/5]/                   |            | /1d 12:33/ |         |      |
+   | \_    Model [0/0]                        |            |            |    0:17 |      |
+   | \_    Config [0/0]                       |            |            |    0:13 |      |
+   | \_    Database [1/2]                     |            |            |    5:28 |      |
+   | \_    Scanner [1/1]                      |            |            |    3:21 |      |
+   | \_    GUI [2/4]                          |            |            | 1d 3:14 |      |
+   | \_      Manage People                    |            |            |         | 2:56 |
+   | \_      Let us play!                     |            |            |         | 0:36 |
+   | \_      Persist and restore window state |            |            |         | 1:03 |
+   | \_      Out of context                   |            |            |         | 5:04 |
    #+END:
 ** Journal
 ** Features [0/0]
@@ -59,12 +60,13 @@
     :LOGBOOK:
     CLOCK: [2025-06-30 Mo 18:33]--[2025-06-30 Mo 18:46] =>  0:13
     :END:
-*** Database [1/1]
+*** Database [1/2]
     :PROPERTIES:
     :COOKIE_DATA: todo recursive
     :VISIBILITY: children
     :END:
     :LOGBOOK:
+    CLOCK: [2025-07-02 Mi 13:45]--[2025-07-02 Mi 14:11] =>  0:26
     CLOCK: [2025-07-01 Di 13:24]--[2025-07-01 Di 13:26] =>  0:02
     CLOCK: [2025-06-23 Mo 20:58]--[2025-06-23 Mo 21:03] =>  0:05
     CLOCK: [2025-06-23 Mo 19:20]--[2025-06-23 Mo 19:50] =>  0:30
@@ -74,6 +76,9 @@
     CLOCK: [2025-06-21 Sa 18:51]--[2025-06-21 Sa 21:00] =>  2:09
     CLOCK: [2025-06-21 Sa 18:02]--[2025-06-21 Sa 18:35] =>  0:33
     :END:
+**** TODO Testing
+     The database is the one component where I can - and /should/ -
+     meaningfully perform automated tests.
 **** CANCELLED [#G] Relative paths?
      CLOSED: [2025-07-01 Di 14:36]
      I had this problem before - if I store the full path of every file, that
@@ -107,12 +112,13 @@
      for. Processing the data is going to be tedious (/very/ tedious), but it
      should be doable.
      That is going to complicate my model, though.
-*** GUI [2/3]
+*** GUI [2/4]
     :PROPERTIES:
     :COOKIE_DATA: todo recursive
     :VISIBILITY: children
     :END:
     :LOGBOOK:
+    CLOCK: [2025-07-02 Mi 12:56]--[2025-07-02 Mi 13:34] =>  0:38
     CLOCK: [2025-07-02 Mi 09:45]--[2025-07-02 Mi 10:16] =>  0:31
     CLOCK: [2025-07-01 Di 13:27]--[2025-07-01 Di 13:42] =>  0:15
     CLOCK: [2025-07-01 Di 13:17]--[2025-07-01 Di 13:24] =>  0:07
@@ -125,6 +131,13 @@
     CLOCK: [2025-06-25 Mi 19:47]--[2025-06-26 Do 00:41] =>  4:54
     CLOCK: [2025-06-25 Mi 17:26]--[2025-06-25 Mi 19:39] =>  2:13
     :END:
+**** TODO Manage People
+     :LOGBOOK:
+     CLOCK: [2025-07-03 Do 14:59]--[2025-07-03 Do 15:46] =>  0:47
+     CLOCK: [2025-07-03 Do 14:50]--[2025-07-03 Do 14:50] =>  0:00
+     CLOCK: [2025-07-02 Mi 14:11]--[2025-07-02 Mi 16:09] =>  1:58
+     CLOCK: [2025-07-02 Mi 13:34]--[2025-07-02 Mi 13:45] =>  0:11
+     :END:
 **** DONE [#D] Let us play!
      CLOSED: [2025-07-01 Di 14:27]
      :LOGBOOK:
@@ -133,6 +146,7 @@
      That would include multiple selection, maybe even playlist management.
 **** TODO Persist and restore window state
      :LOGBOOK:
+     CLOCK: [2025-07-03 Do 14:51]--[2025-07-03 Do 14:57] =>  0:06
      CLOCK: [2025-07-01 Di 15:13]--[2025-07-01 Di 16:10] =>  0:57
      :END:
 **** DONE Out of context
