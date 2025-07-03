@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Time-stamp: <2025-07-02 14:10:00 krylon>
+# Time-stamp: <2025-07-03 15:26:18 krylon>
 #
 # /data/code/python/hollywoo/database.py
 # created on 21. 06. 2025
@@ -140,6 +140,8 @@ CREATE TABLE person_vid_link (
       ON DELETE CASCADE
 ) STRICT
     """,
+    "CREATE INDEX pvl_idx_person ON person_vid_link (pid)",
+    "CREATE INDEX pvl_idx_video ON person_vid_link (vid)",
     """
 CREATE TABLE person_url (
     id INTEGER PRIMARY KEY,
@@ -194,6 +196,7 @@ class qid(IntEnum):
     PersonGetByID = auto()
     PersonGetAll = auto()
     LinkPersonAdd = auto()
+    LinkPersonDelete = auto()
     LinkPersonGetByPerson = auto()
     LinkPersonGetByVid = auto()
 
@@ -373,6 +376,10 @@ ORDER BY t.name
     qid.PersonGetByID: "SELECT name, born FROM person WHERE id = ?",
     qid.PersonGetAll: "SELECT id, name, born FROM person ORDER BY name",
     qid.LinkPersonAdd: "INSERT INTO person_vid_link (pid, vid, role) VALUES (?, ?, ?)",
+    qid.LinkPersonDelete: """
+DELETE FROM person_vid_link
+WHERE pid = ? AND vid = ? AND role = ?
+    """,
     qid.LinkPersonGetByPerson: """
 SELECT
     vid,
@@ -841,6 +848,12 @@ class Database:
         assert role != ""
         cur = self.db.cursor()
         cur.execute(qdb[qid.LinkPersonAdd], (p.pid, v.vid, role))
+
+    def person_link_remove(self, p: Person, v: Video, role: str) -> None:
+        """Remove a link between a Person and a Video."""
+        cur = self.db.cursor()
+        cur.execute(qdb[qid.LinkPersonDelete],
+                    (p.pid, v.vid, role))
 
     def person_link_get_by_person(self, p: Person) -> list[tuple[Video, str]]:
         """Get a list of all Videos this person is linked to."""
